@@ -1,20 +1,25 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-#days per month
-endDay = [31, 29, 31, 30 , 31, 30, 31, 31, 30, 31, 30, 25] 
-prices = np.zeros((24,360))
+try: 
+   prices = np.load('extractedPrices.npy')
+   #print('prices loaded')
+except IOError as e:
+   #days per month
+   endDay = [31, 29, 31, 30 , 31, 30, 31, 31, 30, 31, 30, 25] 
+   prices = np.zeros((24,360))
 
-# reading in the files
-day = 0
-for m in range(1, 13):
-   for i in range (1, endDay[m-1]+1):
-      date = str(m)+'-'+str(i) 		
-      data = np.genfromtxt(date, delimiter=None, dtype = 'float')
-      for h in range(0,24):
-         prices[h][day] = data[h]
-      day += 1
+   # reading in the files
+   day = 0
+   for m in range(1, 13):
+      for i in range (1, endDay[m-1]+1):
+         date = str(m)+'-'+str(i) 		
+         data = np.genfromtxt(date, delimiter=None, dtype = 'float')
+         for h in range(0,24):
+            prices[h][day] = data[h]
+         day += 1
 # print(prices[0:,36])
+   np.save('extractedPrices', prices)
 
 # processing data
 minimumPerDay = np.zeros((360))
