@@ -85,7 +85,7 @@ def initializeRewardTable():
 	reward[0][2] = 100.0
 
 def getPriceToPriceProb(p1, p2):
-	# TODO return probability of going from p1 to p2
+	# TODO return probability of going from price1 to price2
 	# Currently return an equal probability to go from any price to any price
 	return 1.0/nPrices
 
@@ -129,7 +129,7 @@ def chargeListApplyActionList(chargeList, actionList):
 		newCharge = chargeList[i] + actionList[i]
 		if(newCharge <= ev.batteryMax): # ensure that ev is not charging beyond capacity
 			chargeList[i] = newCharge
-		else
+		else:
 			chargeList[i] = ev.batteryMax
 	return chargeList
 
@@ -207,7 +207,7 @@ def printEVs():
 def initTestEVFleet():
 	evsList =  [EV(0, 2, 2, 1, 0, 23)]
 	evsList += [EV(0, 3, 3, 1, 1, 23)]
-	evsList += [EV(0, 3, 3, 1, 2, 23)]
+	evsList += [EV(0, 4, 4, 1, 2, 23)]
 
 	nEVs = len(evsList)
 	nChargeStates = 1
@@ -238,7 +238,7 @@ def testStatePlusAction():
 			print(csl, end=" -> ")
 			print(chargeListToState(csl))
 
-# initializeIdenticalEVFleet(0, 6, 1, [0,1], 23)
+# initializeIdenticalEVFleet(0, 2, 1, [0,1,2,3], 23)
 # initTestEVFleet()
 
 # testStateToListToState()
