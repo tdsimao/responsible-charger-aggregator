@@ -10,7 +10,7 @@ TRANSITION_TABLE_PRINT_FLOAT_FLAG = False
 nEVs = 2 		 # The number of EVs
 nChargeSteps = 4 # The number of timesteps needed to charge at full charge rate
 nChargeRates = 2 # Currently binary charging (full or nothing)
-nPrices = 3 	 # The number of prices categories
+nPrices = 5 	 # The number of prices categories
 
 nChargeStates = int(pow(nChargeSteps, nEVs)) # Currently assumes all EVs have the same charge rate and time
 # nStates = int(nChargeStates * nPrices)
@@ -84,9 +84,15 @@ def initializeRewardTable():
 	reward[0][1] = 100.0
 	reward[0][2] = 100.0
 
-def getPriceToPriceProb(p1, p2):
-	# TODO return probability of going from price1 to price2
+def getPriceToPriceProb(fromPrice, toPrice):
+	# TODO return probability of going from a price to another price
 	# Currently return an equal probability to go from any price to any price
+	return 1.0/nPrices
+
+def getTimePriceToPriceProb(currTime, fromPrice, toPrice):
+	# TODO return probability of going from a price to another price 
+	# from time currTime to currTime + 1
+	# Currently return an equal probability to go from any price to any price at any time
 	return 1.0/nPrices
 
 def chargeStateToList(chargeState):
@@ -151,14 +157,33 @@ def initializeTransitionTable():
 			for toCharge in range(nChargeStates):
 				if (toCharge == chargeFromState(fromCharge, action)):
 					# print("action: %d, charge: from: %d, to %d, price: from: %d, to: %d" % (action, fromCharge, toCharge, fromPrice, toPrice))
-					
-					# transitionTable[fromCharge][action][toCharge] = 1
 					transitionTable[action][fromCharge][toCharge] = 1
-
 					# fromState = nChargeStates * fromPrice + fromCharge
 					# toState = nChargeStates * toPrice + toCharge
-					# # transitionTable[fromState][action][toState] = getPriceToPriceProb(fromPrice, toPrice)
 					# transitionTable[action][fromState][toState] = getPriceToPriceProb(fromPrice, toPrice)
+
+# independent of price and time
+# returns probability of success of applying action on fromState resulting in toState (0 or 1)
+def getTransitionProbability(action, fromState, toState):
+	if toState == chargeFromState(fromState, action):
+		return 1
+	else:
+		return 0
+
+# independent of time
+# returns the price probability or 0 if the action does not allow going to that state
+def getPriceTransitionProbability(action, fromState, toState, fromPrice, toPrice):
+	if getTransitionProbability(action, fromState, toState) == 1:
+		return getPriceToPriceProb(fromPrice, toPrice)
+	else:
+		return 0
+
+# returns the time based price probability or 0 if the action does not allow going to that state
+def getTimePriceTransitionProbability(action, fromState, toState, fromPrice, toPrice, currTime):
+	if getTransitionProbability(action, fromState, toState) == 1:
+		return getTimePriceToPriceProb(currTime, fromPrice, toPrice)
+	else:
+		return 0
 
 def printTransitionTable():
 	for action in range(nActions):
@@ -205,6 +230,8 @@ def printEVs():
 #			TEST CODE BELOW
 #----------------------------------------
 def initTestEVFleet():
+	global evsList, nEVs, nChargeStates, nStates, nChargeRates, nActions
+
 	evsList =  [EV(0, 2, 2, 1, 0, 23)]
 	evsList += [EV(0, 3, 3, 1, 1, 23)]
 	evsList += [EV(0, 4, 4, 1, 2, 23)]
@@ -238,7 +265,7 @@ def testStatePlusAction():
 			print(csl, end=" -> ")
 			print(chargeListToState(csl))
 
-# initializeIdenticalEVFleet(0, 2, 1, [0,1,2,3], 23)
+initializeIdenticalEVFleet(0, 2, 1, [0,1,2,3], 23)
 # initTestEVFleet()
 
 # testStateToListToState()
