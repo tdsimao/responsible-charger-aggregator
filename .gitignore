@@ -103,3 +103,7 @@ ENV/
 
 # linear program files
 *.lp
+
+
+# Pycharm files
+.idea

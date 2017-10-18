@@ -1,0 +1,6 @@
+numBus=3
+numLines=3
+# LINE DATA (from bus, to bus, circuit id, reactance x in p.u., MVA rating)
+0 1 0 0.1 200
+0 2 0 0.1 200
+1 2 0 0.1 200
