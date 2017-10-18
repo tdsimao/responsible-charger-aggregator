@@ -1,10 +1,8 @@
 import numpy as np
-from util import *
-from gurobipy import *
 
 
 class Grid(object):
-    def __init__(self, n_nodes, n_lines, lines, reactances):
+    def __init__(self, n_nodes, n_lines, lines, reactances, line_bounds):
         self.n_nodes = n_nodes
         self.n_lines = n_lines
         self.lines = lines
@@ -18,10 +16,33 @@ class Grid(object):
             x[j][i] = r
         return x
 
-    # @staticmethod
-    # def load_grid_from_file(self):
-    #     return Grid()
+    @staticmethod
+    def load_grid_from_file(file_name):
+        with open(file_name, "r") as f:
+            first_line = f.readline().split("=")
+            assert first_line[0] == "numBus"
+            n_nodes = int(first_line[1])
 
+            second_line = f.readline().split("=")
+            assert second_line[0] == "numLines"
+            n_lines = second_line[1]
+
+            comment_line = f.readline()
+            assert comment_line[0] == "#"
+
+            lines = []
+            reactances = []
+            line_bounds = []
+            for line in f.readlines():
+                i, j, _, reactance, line_bound = line.split()
+                lines.append((int(i), int(j)))
+                reactances.append(float(reactance))
+                line_bounds.append(float(line_bound))
+        return Grid(n_nodes=n_nodes,
+                    n_lines=n_lines,
+                    lines=lines,
+                    reactances=reactances,
+                    line_bounds=line_bounds)
 
     def _compute_ptdfs(self):
         """
@@ -45,7 +66,7 @@ class Grid(object):
         return np.linalg.inv(m[1::, 1::])
 
     def _compute_m(self):
-        m = np.zeros([self.n_nodes,self.n_nodes])
+        m = np.zeros([self.n_nodes, self.n_nodes])
         for i in range(self.n_nodes):
             for j in range(self.n_nodes):
                 if i != j:
@@ -68,9 +89,17 @@ class Grid(object):
 
 
 if __name__ == "__main__":
+    """
+    running some tests with the example from [Walraven and Morales-España, 2015]
+    """
     grid = Grid(n_nodes=3,
                 n_lines=3,
                 lines=[(0, 1), (0, 2), (1, 2), (1, 0), (2, 0), (2, 1)],
-                reactances=[.1, .1, .1])
+                reactances=[.1, .1, .1],
+                line_bounds=[200, 200, 200])
+    grid_flow = grid.compute_flow([2, 1, -3])
+    print(grid_flow)
+
+    grid_from_file = Grid.load_grid_from_file('grids/grid_1.txt')
     grid_flow = grid.compute_flow([2, 1, -3])
     print(grid_flow)
