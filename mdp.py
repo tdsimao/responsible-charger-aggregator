@@ -61,17 +61,13 @@ def discountReward(qn, s, a):
 	return result
 
 def getFeasibleActions(s):
-	# TODO
-	assert s >= 0 and s < nStates
+	assert 0 <= s < nStates
+	global grid, evsList
 
 	actions = []
-	if s is 0:
-		actions.append(0)
-		actions.append(1)
-		actions.append(2)
-	else:
-		actions.append(3)
-	
+	for action in range(nActions):
+		if grid.feasible(get_load(evsList, action, grid)):
+			action.append(action)
 	return actions
 
 
