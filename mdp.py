@@ -1,9 +1,11 @@
 # Vincent Koeten
 # Adapted HW1 value iteration
 
+import numpy as np
 from pprint import pprint
 from math import pow, ceil
 from EV import EV
+from grid import Grid
 
 TRANSITION_TABLE_PRINT_FLOAT_FLAG = False
 
@@ -21,6 +23,7 @@ horizon = 24
 reward = []
 transitionTable = []
 evsList = []
+grid = None
 
 prices = [p for p in range(1,10)]
 
@@ -226,6 +229,19 @@ def printEVs():
 	for i in range(len(evsList)):
 		print(evsList[i])
 
+def get_load(evs, action, grid):
+	global evsList
+	evsList = evs
+	load = np.zeros(grid.n_nodes)
+	for ev_ind, charging_rate in enumerate(chargeActionToList(action)):
+		if charging_rate > 0:
+			ev = evsList[ev_ind]
+			power_consumption = 200.  # power consumption should be a parameter of the EV
+			# multiply by charging in case of multiple chargin states
+			load[ev.gridPosition] += ev.chargeRate * power_consumption * charging_rate
+	total_load = sum(load)
+	load[0] = -total_load
+	return load
 #----------------------------------------
 #			TEST CODE BELOW
 #----------------------------------------
@@ -265,6 +281,40 @@ def testStatePlusAction():
 			print(csl, end=" -> ")
 			print(chargeListToState(csl))
 
+def test_get_load():
+	evsList =  [EV(0, 3, 3, 1, gridPos=1, deadline=23)]
+	evsList += [EV(0, 4, 4, 1, gridPos=2, deadline=23)]
+
+	grid = Grid.load_grid_from_file('grids/grid_1.txt')
+	for action in range(nActions):
+		print("action: ", action, chargeActionToList(action))
+		load = get_load(evsList, action=action, grid=grid)
+		print("load: ", load)
+		print("flow", grid.compute_flow(load))
+		if grid.feasible(load):
+			print("feasible")
+		else:
+			print("not feasible")
+		print("")
+
+def test_with_unfeasible_loads():
+	evsList =  [EV(0, 3, 3, 1, gridPos=2, deadline=23)]
+	evsList += [EV(0, 4, 4, 1, gridPos=2, deadline=23)]
+
+	grid = Grid.load_grid_from_file('grids/grid_1.txt')
+	for action in range(nActions):
+		print("action: ", action, chargeActionToList(action))
+		load = get_load(evsList, action=action, grid=grid)
+		print("load: ", load)
+		print("flow", grid.compute_flow(load))
+		if grid.feasible(load):
+			print("feasible")
+		else:
+			print("not feasible")
+		print("")
+
+test_get_load()
+test_with_unfeasible_loads()
 initializeIdenticalEVFleet(0, 2, 1, [0,1,2,3], 23)
 # initTestEVFleet()
 
