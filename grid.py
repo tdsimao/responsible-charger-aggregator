@@ -4,25 +4,24 @@ from gurobipy import *
 
 
 class Grid(object):
-    def __init__(self):
-        self.n_nodes = 3
-        self.n_lines = 3
-        self.x = self.initialize_x()
-        self.lines = self.init_lines()
+    def __init__(self, n_nodes, n_lines, lines, reactances):
+        self.n_nodes = n_nodes
+        self.n_lines = n_lines
+        self.lines = lines
+        self.x = self._get_x(reactances)
         self.S = self._compute_ptdfs()
 
-    def init_lines(self):
-        return [(0, 1), (0, 2), (1, 2), (1, 0), (2, 0), (2, 1)]
-
-    def initialize_x(self):
+    def _get_x(self, reactances):
         x = np.zeros([self.n_nodes, self.n_nodes])
-        x[0][1] = .1
-        x[0][2] = .1
-        x[1][2] = .1
-        x[1][0] = x[0][1]
-        x[2][0] = x[0][2]
-        x[2][1] = x[1][2]
+        for (i, j), r in zip(self.lines, reactances):
+            x[i][j] = r
+            x[j][i] = r
         return x
+
+    # @staticmethod
+    # def load_grid_from_file(self):
+    #     return Grid()
+
 
     def _compute_ptdfs(self):
         """
@@ -69,6 +68,9 @@ class Grid(object):
 
 
 if __name__ == "__main__":
-    grid = Grid()
+    grid = Grid(n_nodes=3,
+                n_lines=3,
+                lines=[(0, 1), (0, 2), (1, 2), (1, 0), (2, 0), (2, 1)],
+                reactances=[.1, .1, .1])
     grid_flow = grid.compute_flow([2, 1, -3])
     print(grid_flow)
