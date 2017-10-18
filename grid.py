@@ -6,15 +6,22 @@ class Grid(object):
         self.n_nodes = n_nodes
         self.n_lines = n_lines
         self.lines = lines
+        self.line_bounds = self._get_line_bounds(line_bounds)
         self.x = self._get_x(reactances)
         self.S = self._compute_ptdfs()
 
     def _get_x(self, reactances):
-        x = np.zeros([self.n_nodes, self.n_nodes])
-        for (i, j), r in zip(self.lines, reactances):
-            x[i][j] = r
-            x[j][i] = r
-        return x
+        return self._list_to_matrix(reactances)
+
+    def _get_line_bounds(self, line_bounds):
+        return self._list_to_matrix(line_bounds)
+
+    def _list_to_matrix(self, alist):
+        matrix = np.zeros([self.n_nodes, self.n_nodes])
+        for (i, j), bound in zip(self.lines, alist):
+            matrix[i][j] = bound
+            matrix[j][i] = bound
+        return matrix
 
     @staticmethod
     def load_grid_from_file(file_name):
@@ -84,22 +91,34 @@ class Grid(object):
         assert len(loads) == self.n_nodes
         flow = np.zeros([self.n_nodes, self.n_nodes])
         for k, l in self.lines:
-            flow[k, l] = sum(loads[i] * 1./self.x[k, l] * self.S[k, l, i] for i in range(self.n_nodes-1))
+            flow[k, l] = self.line_flow(k, l, loads)
         return flow
+
+    def line_flow(self, k, l, loads):
+        return sum(loads[i] * 1. / self.x[k, l] * self.S[k, l, i] for i in range(self.n_nodes - 1))
+
+    def feasible(self, loads):
+        flow = self.compute_flow(loads)
+        for i, j in self.lines:
+            if abs(flow[i, j]) > self.line_bounds[i, j]:
+                return False
+        return True
+
+
+def test_grid_feasibility(testing_grid, loads, expected_result):
+    assert testing_grid.feasible(loads) == expected_result
 
 
 if __name__ == "__main__":
     """
     running some tests with the example from [Walraven and Morales-España, 2015]
     """
-    grid = Grid(n_nodes=3,
-                n_lines=3,
-                lines=[(0, 1), (0, 2), (1, 2), (1, 0), (2, 0), (2, 1)],
-                reactances=[.1, .1, .1],
-                line_bounds=[200, 200, 200])
-    grid_flow = grid.compute_flow([2, 1, -3])
-    print(grid_flow)
+    grid = Grid.load_grid_from_file('grids/grid_1.txt')
 
-    grid_from_file = Grid.load_grid_from_file('grids/grid_1.txt')
-    grid_flow = grid.compute_flow([2, 1, -3])
-    print(grid_flow)
+    print(grid.compute_flow([2, 1, -3]))
+
+    test_grid_feasibility(testing_grid=grid, loads=[2, -1, 3], expected_result=True)
+    test_grid_feasibility(testing_grid=grid, loads=[-400, 200, 200], expected_result=True)
+    test_grid_feasibility(testing_grid=grid, loads=[401, -201, -200], expected_result=False)
+    test_grid_feasibility(testing_grid=grid, loads=[401, -200, -201], expected_result=False)
+    test_grid_feasibility(testing_grid=grid, loads=[-200, 401, -201], expected_result=False)
