@@ -84,13 +84,21 @@ def initializeRewardTable():
 	reward[0][2] = 100.0
 
 def getPriceToPriceProb(fromPrice, toPrice):
-	# TODO return probability of going from a price to another price
+	# return probability of going from a price to another price
+
+	# priceLevelTable = np.load('level6PercentagesWithoutTime.npy')
+	# return priceLevelTable[fromPrice, toPrice]
+
 	# Currently return an equal probability to go from any price to any price
 	return 1.0/nPrices
 
 def getTimePriceToPriceProb(currTime, fromPrice, toPrice):
-	# TODO return probability of going from a price to another price 
+	# return probability of going from a price to another price 
 	# from time currTime to currTime + 1
+
+	# priceLevelTable = np.load('level6Percentages.npy')
+	# return priceLevelTable[currTime, fromPrice, toPrice]
+
 	# Currently return an equal probability to go from any price to any price at any time
 	return 1.0/nPrices
 
