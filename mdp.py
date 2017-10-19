@@ -4,6 +4,7 @@
 import numpy as np
 from pprint import pprint
 from math import pow, ceil
+from functools import lru_cache
 from EV import EV
 from grid import Grid
 
@@ -85,11 +86,10 @@ def discountReward(qn, s, a):
 			result += prob * m
 	return result
 
-
+@lru_cache(maxsize=2*nStates)
 def getFeasibleActions(s):
 	assert 0 <= s < nStates
 	global grid, evsList
-
 	actions = []
 	sList = chargeStateToList(s)
 	batAtMax = [False for x in range(len(evsList))]
