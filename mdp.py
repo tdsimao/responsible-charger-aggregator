@@ -19,7 +19,7 @@ nChargeStates = int(pow(nChargeSteps, nEVs)) # Currently assumes all EVs have th
 nStates = nChargeStates
 nActions = int(pow(nChargeRates, nEVs))
 # print("nEVs:%d, nChargeSteps:%d, nPrices:%d, nChargeStates:%d, nStates:%d, nActions:%d" % (nEVs, nChargeSteps, nPrices, nChargeStates, nStates, nActions))
-horizon = 24
+horizon = 12
 reward = []
 transitionTable = []
 evsList = []
@@ -39,22 +39,27 @@ def MDP(discount):
 def solve(discountFactor):
 	assert discountFactor >= 0 and discountFactor <= 1.0
 	bestAction = -1
-	qn = [[reward[s][a] for a in range(nActions)] for s in range(nStates)]
+	qn = [[0 for a in range(nActions)] for s in range(nStates)]
+	pprint(qn)
 	# The value iteration algorithm
-	for timestep in range(0, horizon):
+	for timestep in range(horizon, 0, -1):
 		qnp1 = [[0 for a in range(nActions)] for s in range(nStates)]
 		for s in range(nStates):
 			for a in getFeasibleActions(s):
-				qnp1[s][a] = reward[s][a] + discountFactor * discountReward(qn, s, a)
+				qnp1[s][a] = getReward(s, a, timestep) + discountFactor * discountReward(qn, s, a)
 		qn = qnp1
-	bestAction = max(xrange(len(qn[0])), key=qn[0].__getitem__)
+		pprint(qn)
+		print("")
+	# pprint(qn)
+	bestAction = max(range(len(qn[0])), key=qn[0].__getitem__)
 	return bestAction
 
 def discountReward(qn, s, a):
 	result = 0
 	for sp in range(nStates):
 		# prob = transitionTable[s][a][sp]
-		prob = transitionTable[a][s][sp]
+		# prob = transitionTable[a][s][sp]
+		prob = getTransitionProbability(a, s, sp)
 		if prob is not 0:
 			m = max(qn[sp])
 			result += prob * m
@@ -65,9 +70,25 @@ def getFeasibleActions(s):
 	global grid, evsList
 
 	actions = []
+	sList = chargeStateToList(s)
+	batAtMax = [False for x in range(len(evsList))]
+	for i in range(len(evsList)):
+		if sList[i] >= evsList[i].batteryMax:
+			batAtMax[i] = True
+	npBat = np.array(batAtMax)
+	
 	for action in range(nActions):
-		if grid.feasible(get_load(evsList, action, grid)):
-			action.append(action)
+		aList = chargeActionToList(action)
+		for c in aList:
+			if c == 1:
+				c = True
+			else:
+				c = False
+		npA = np.array(aList)
+		result = npA & npBat
+		if not any(result):
+			if grid.feasible(get_load(evsList, action, grid)):
+				actions.append(action)
 	return actions
 
 
@@ -82,6 +103,21 @@ def initializeRewardTable():
 	reward[0][0] = 100.0
 	reward[0][1] = 100.0
 	reward[0][2] = 100.0
+
+def getReward(state, action, timestep):
+	# TODO avoid charging/rewarding charging full vehicles
+	#Compute number of charging vehicles 
+	chargeList = chargeActionToList(action)
+	num_evs_charging = sum(chargeList)
+	#multiply by price set
+	return (100 - getPrice(timestep)) * num_evs_charging
+
+def getPrice(timestep):
+	if timestep < 3:
+		return 70
+	if timestep < 7:
+		return 30
+	return 90
 
 def getPriceToPriceProb(fromPrice, toPrice):
 	# return probability of going from a price to another price
@@ -286,8 +322,19 @@ def testStatePlusAction():
 			print(chargeListToState(csl))
 
 def test_get_load():
-	evsList =  [EV(0, 3, 3, 1, gridPos=1, deadline=23)]
+	global evsList, nEVs, nChargeStates, nStates, nChargeRates, nActions, grid
+
+	evsList =  [EV(0, 3, 3, 1, gridPos=2, deadline=23)]
 	evsList += [EV(0, 4, 4, 1, gridPos=2, deadline=23)]
+
+	nEVs = len(evsList)
+	nChargeStates = 1
+	for ev in evsList:
+		nChargeStates *= ev.nChargeSteps
+	nStates = nChargeStates # For now unless pricing info is kept in state then multiply by nPrices
+	nChargeRates = 2
+	nActions = int(pow(nChargeRates, nEVs))
+	print("nEVs: %d, nPrices: %d, nChargeStates: %d, nStates: %d, nActions: %d" % (nEVs, nPrices, nChargeStates, nStates, nActions))
 
 	grid = Grid.load_grid_from_file('grids/grid_1.txt')
 	for action in range(nActions):
@@ -300,6 +347,9 @@ def test_get_load():
 		else:
 			print("not feasible")
 		print("")
+
+	solve(1)
+
 
 def test_with_unfeasible_loads():
 	evsList =  [EV(0, 3, 3, 1, gridPos=2, deadline=23)]
@@ -318,8 +368,8 @@ def test_with_unfeasible_loads():
 		print("")
 
 test_get_load()
-test_with_unfeasible_loads()
-initializeIdenticalEVFleet(0, 2, 1, [0,1,2,3], 23)
+# test_with_unfeasible_loads()
+# initializeIdenticalEVFleet(0, 2, 1, [0,1,2,3], 23)
 # initTestEVFleet()
 
 # testStateToListToState()
