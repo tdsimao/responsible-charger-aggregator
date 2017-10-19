@@ -7,6 +7,7 @@ from math import pow, ceil
 from EV import EV
 from grid import Grid
 
+
 TRANSITION_TABLE_PRINT_FLOAT_FLAG = False
 
 nEVs = 2 		 # The number of EVs
@@ -40,7 +41,7 @@ def solve(discountFactor):
 	assert discountFactor >= 0 and discountFactor <= 1.0
 	bestAction = -1
 	qn = [[0 for a in range(nActions)] for s in range(nStates)]
-	pprint(qn)
+	policy = []
 	# The value iteration algorithm
 	for timestep in range(horizon, 0, -1):
 		qnp1 = [[0 for a in range(nActions)] for s in range(nStates)]
@@ -48,11 +49,30 @@ def solve(discountFactor):
 			for a in getFeasibleActions(s):
 				qnp1[s][a] = getReward(s, a, timestep) + discountFactor * discountReward(qn, s, a)
 		qn = qnp1
-		pprint(qn)
-		print("")
-	# pprint(qn)
-	bestAction = max(range(len(qn[0])), key=qn[0].__getitem__)
-	return bestAction
+
+		new_policy = [greedy_policy(qn[s], s) for s in range(nStates)]
+		policy.append(new_policy)
+
+
+	return policy[::-1]
+
+
+def greedy_policy(q, s):
+	"""
+	return the list of indexes with the greater values in a_list
+	"""
+	result = []
+	if not q:
+		return result
+	max_val = q[0]
+	for action in getFeasibleActions(s):
+		q_value = q[action]
+		if q_value == max_val:
+			result.append(action)
+		elif q_value > max_val:
+			result = [action]
+			max_val = q_value
+	return result
 
 def discountReward(qn, s, a):
 	result = 0
@@ -64,6 +84,7 @@ def discountReward(qn, s, a):
 			m = max(qn[sp])
 			result += prob * m
 	return result
+
 
 def getFeasibleActions(s):
 	assert 0 <= s < nStates
@@ -325,7 +346,7 @@ def test_get_load():
 	global evsList, nEVs, nChargeStates, nStates, nChargeRates, nActions, grid
 
 	evsList =  [EV(0, 3, 3, 1, gridPos=2, deadline=23)]
-	evsList += [EV(0, 4, 4, 1, gridPos=2, deadline=23)]
+	evsList += [EV(0, 4, 4, 1, gridPos=1, deadline=23)]
 
 	nEVs = len(evsList)
 	nChargeStates = 1
@@ -348,7 +369,15 @@ def test_get_load():
 			print("not feasible")
 		print("")
 
-	solve(1)
+	policy = solve(1)
+
+	for i in range(horizon):
+		print("time step: | EVs Charging State |  best actions  ")
+
+		for s in range(nStates):
+			actions = [chargeActionToList(a) for a in policy[i][s]]
+			print("{:11}| {:19}| {}".format(i, str(chargeStateToList(s)), actions))
+		print("")
 
 
 def test_with_unfeasible_loads():
@@ -367,19 +396,22 @@ def test_with_unfeasible_loads():
 			print("not feasible")
 		print("")
 
-test_get_load()
-# test_with_unfeasible_loads()
-# initializeIdenticalEVFleet(0, 2, 1, [0,1,2,3], 23)
-# initTestEVFleet()
 
-# testStateToListToState()
-# testActionToList()
-# testStatePlusAction()
+if __name__ == "__main__":
+	test_get_load()
+	# test_with_unfeasible_loads()
+	# initializeIdenticalEVFleet(0, 2, 1, [0,1,2,3], 23)
+	# initTestEVFleet()
 
-# printEVs()
+	# testStateToListToState()
+	# testActionToList()
+	# testStatePlusAction()
 
-# initializeTransitionTable()
-# printTransitionTable()
-# OR
-# pprint(transitionTable)
+	# printEVs()
 
+	# initializeTransitionTable()
+	# printTransitionTable()
+	# OR
+	# pprint(transitionTable)
+
+	pass
