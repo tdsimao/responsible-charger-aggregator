@@ -39,7 +39,7 @@ def MDP(discount):
 def value_iteration():
 	"""
 
-	:return: greedy policy for each time step
+	:return: greedy policy for each time step and expected value of each state at timestep 0
 	"""
 	qn = np.zeros((nStates, nActions))
 	policy = []
@@ -52,7 +52,9 @@ def value_iteration():
 		qn = qnp1
 		new_policy =  [greedy_policy(qn[s], s) for s in range(nStates)]
 		policy.append(new_policy)
-	return policy[::-1]
+
+	expected_value = [max(future_expected_reward(qn, s, a) for a in range(nActions)) for s in range(nStates)]
+	return policy[::-1], expected_value
 
 
 def greedy_policy(q, s):
@@ -366,7 +368,7 @@ def test_get_load():
 			print("not feasible")
 		print("")
 
-	policy = value_iteration()
+	policy, expected_value = value_iteration()
 
 	for i in range(horizon):
 		print("time step: | EVs Charging State |  best actions  ")
@@ -375,6 +377,10 @@ def test_get_load():
 			actions = [chargeActionToList(a) for a in policy[i][s]]
 			print("{:11}| {:19}| {}".format(i, str(chargeStateToList(s)), actions))
 		print("")
+
+	print("EVs Charging State |  expected value time step 0")
+	for s in range(nStates):
+		print("{:19}| {}".format(str(chargeStateToList(s)), expected_value[s]))
 
 
 def test_with_unfeasible_loads():
