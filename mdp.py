@@ -27,7 +27,7 @@ reward = []
 transitionTable = []
 evsList = []
 grid = None
-
+feasible_actions = None
 
 def MDP(discount):
 	initializeTransitionTable()
@@ -49,7 +49,7 @@ def value_iteration():
 		qnp1 = np.zeros((len(prices), nStates, nActions))
 		for price_ind, price in enumerate(prices):
 			for s in range(nStates):
-				for a in getFeasibleActions(s):
+				for a in feasible_actions_in_state(s):
 					expected_future_reward = 0
 					for future_price_ind, future_price in enumerate(get_prices(t + 1)):
 						expected_future_reward += future_expected_reward(qn[future_price_ind], s, a) * \
@@ -78,7 +78,7 @@ def greedy_policy(q, s):
 	if q is None:
 		return result
 	max_val = q[0]
-	for action in getFeasibleActions(s):
+	for action in feasible_actions_in_state(s):
 		q_value = q[action]
 		if q_value == max_val:
 			result.append(action)
@@ -86,6 +86,7 @@ def greedy_policy(q, s):
 			result = [action]
 			max_val = q_value
 	return result
+
 
 def future_expected_reward(qn, s, a):
 	result = 0
@@ -98,31 +99,31 @@ def future_expected_reward(qn, s, a):
 			result += prob * m
 	return result
 
-@lru_cache(maxsize=2*nStates)
-def getFeasibleActions(s):
-	assert 0 <= s < nStates
-	global grid, evsList
-	actions = []
-	sList = chargeStateToList(s)
-	batAtMax = [False for x in range(len(evsList))]
-	for i in range(len(evsList)):
-		if sList[i] >= evsList[i].batteryMax:
-			batAtMax[i] = True
-	npBat = np.array(batAtMax)
-	
-	for action in range(nActions):
-		aList = chargeActionToList(action)
-		for c in aList:
-			if c == 1:
-				c = True
-			else:
-				c = False
-		npA = np.array(aList)
-		result = npA & npBat
-		if not any(result):
+
+def grid_feasible_actions():
+	global grid, feasible_actions
+	if feasible_actions is None:
+		feasible_actions = []
+		for action in range(nActions):
 			if grid.feasible(get_load(evsList, action, grid)):
-				actions.append(action)
-	return actions
+				feasible_actions.append(action)
+	return feasible_actions
+
+
+@lru_cache(maxsize=2*nStates)
+def feasible_actions_in_state(s):
+	assert 0 <= s < nStates
+	global evsList
+	vehicles_charge = np.array(chargeStateToList(s))
+	max_charge = np.array(list(ev.batteryMax for ev in evsList))
+	vehicles_charged = vehicles_charge == max_charge
+
+	result = []
+	for action in grid_feasible_actions():
+		charging_vehicles = np.array(chargeActionToList(action)).astype(bool)
+		if not any(charging_vehicles & vehicles_charged):
+			result.append(action)
+	return result
 
 
 def initializeRewardTable():
