@@ -8,13 +8,14 @@ from functools import lru_cache
 from EV import EV
 from grid import Grid
 
+MAXIMUM_PRICE = 100
 
 TRANSITION_TABLE_PRINT_FLOAT_FLAG = False
 
 nEVs = 2 		 # The number of EVs
 nChargeSteps = 4 # The number of timesteps needed to charge at full charge rate
 nChargeRates = 2 # Currently binary charging (full or nothing)
-nPrices = 5 	 # The number of prices categories
+nPrices = 1 	 # The number of prices categories
 
 nChargeStates = int(pow(nChargeSteps, nEVs)) # Currently assumes all EVs have the same charge rate and time
 # nStates = int(nChargeStates * nPrices)
@@ -27,7 +28,6 @@ transitionTable = []
 evsList = []
 grid = None
 
-prices = [p for p in range(1,10)]
 
 def MDP(discount):
 	initializeTransitionTable()
@@ -41,20 +41,33 @@ def value_iteration():
 
 	:return: greedy policy for each time step and expected value of each state at timestep 0
 	"""
-	qn = np.zeros((nStates, nActions))
+	qn = np.zeros((len(get_prices(horizon)), nStates, nActions))
 	policy = []
 	# The value iteration algorithm
-	for timestep in reversed(range(horizon)):
-		qnp1 = np.zeros((nStates, nActions))
-		for s in range(nStates):
-			for a in getFeasibleActions(s):
-				qnp1[s][a] = getReward(s, a, timestep) + future_expected_reward(qn, s, a)
+	for t in reversed(range(horizon)):
+		prices = get_prices(t)
+		qnp1 = np.zeros((len(prices), nStates, nActions))
+		for price_ind, price in enumerate(prices):
+			for s in range(nStates):
+				for a in getFeasibleActions(s):
+					expected_future_reward = 0
+					for future_price_ind, future_price in enumerate(get_prices(t + 1)):
+						expected_future_reward += future_expected_reward(qn[future_price_ind], s, a) * \
+													getTimePriceToPriceProb(t, price, future_price)
+					qnp1[price_ind][s][a] = getReward(s, a, price) + expected_future_reward
 		qn = qnp1
-		new_policy =  [greedy_policy(qn[s], s) for s in range(nStates)]
+		new_policy = []
+		for price_ind, _ in enumerate(prices):
+			new_policy.append([greedy_policy(qn[price_ind][s], s) for s in range(nStates)])
 		policy.append(new_policy)
 
-	expected_value = [max(future_expected_reward(qn, s, a) for a in range(nActions)) for s in range(nStates)]
-	return policy[::-1], expected_value
+	expected_values = []
+	for s in range(nStates):
+		expected_values.append([])
+		for price_ind, _ in enumerate(get_prices(0)):
+			expected_values[s].append(max(future_expected_reward(qn[price_ind], s, a) for a in range(nActions)))
+
+	return policy[::-1], expected_values
 
 
 def greedy_policy(q, s):
@@ -124,20 +137,19 @@ def initializeRewardTable():
 	reward[0][1] = 100.0
 	reward[0][2] = 100.0
 
-def getReward(state, action, timestep):
-	# TODO avoid charging/rewarding charging full vehicles
-	#Compute number of charging vehicles 
+def getReward(state, action, price):
 	chargeList = chargeActionToList(action)
 	num_evs_charging = sum(chargeList)
-	#multiply by price set
-	return (100 - getPrice(timestep)) * num_evs_charging
+	return (MAXIMUM_PRICE - price) * num_evs_charging
 
-def getPrice(timestep):
+def get_prices(timestep):
 	if timestep < 3:
-		return 70
+		return [70]
 	if timestep < 7:
-		return 30
-	return 90
+		return [30]
+	if timestep < horizon:
+		return [90]
+	return [float('inf')]
 
 def getPriceToPriceProb(fromPrice, toPrice):
 	# return probability of going from a price to another price
@@ -156,7 +168,7 @@ def getTimePriceToPriceProb(currTime, fromPrice, toPrice):
 	# return priceLevelTable[currTime, fromPrice, toPrice]
 
 	# Currently return an equal probability to go from any price to any price at any time
-	return 1.0/nPrices
+	return 1.0/len(get_prices(currTime + 1))
 
 def chargeStateToList(chargeState):
 	chargeList = []
@@ -371,16 +383,17 @@ def test_get_load():
 	policy, expected_value = value_iteration()
 
 	for i in range(horizon):
-		print("time step: | EVs Charging State |  best actions  ")
-
-		for s in range(nStates):
-			actions = [chargeActionToList(a) for a in policy[i][s]]
-			print("{:11}| {:19}| {}".format(i, str(chargeStateToList(s)), actions))
+		print("time step: | price | EVs Charging State |  best actions  ")
+		for p_ind, price in enumerate(get_prices(i)):
+			for s in range(nStates):
+				actions = [chargeActionToList(a) for a in policy[i][p_ind][s]]
+				print("{:11}| {:5} | {:19}| {}".format(i, price, str(chargeStateToList(s)), actions))
 		print("")
 
-	print("EVs Charging State |  expected value time step 0")
-	for s in range(nStates):
-		print("{:19}| {}".format(str(chargeStateToList(s)), expected_value[s]))
+	print("price | EVs Charging State | expected value time step 0")
+	for p_ind, price in enumerate(get_prices(0)):
+		for s in range(nStates):
+			print("{:5} | {:19}| {}".format(price, str(chargeStateToList(s)), expected_value[s][p_ind]))
 
 
 def test_with_unfeasible_loads():
