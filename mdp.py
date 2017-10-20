@@ -35,35 +35,32 @@ def MDP(discount):
 	optimalAction = solve(discount)
 	return optimalAction
 
-# Solve MDP and return optimal action
-# @param discountFactor the discount factor
-# @return optimal action to select in state s_0
-def solve(discountFactor):
-	assert discountFactor >= 0 and discountFactor <= 1.0
-	bestAction = -1
-	qn = [[0 for a in range(nActions)] for s in range(nStates)]
+
+def value_iteration():
+	"""
+
+	:return: greedy policy for each time step
+	"""
+	qn = np.zeros((nStates, nActions))
 	policy = []
 	# The value iteration algorithm
-	for timestep in range(horizon, 0, -1):
-		qnp1 = [[0 for a in range(nActions)] for s in range(nStates)]
+	for timestep in reversed(range(horizon)):
+		qnp1 = np.zeros((nStates, nActions))
 		for s in range(nStates):
 			for a in getFeasibleActions(s):
-				qnp1[s][a] = getReward(s, a, timestep) + discountFactor * discountReward(qn, s, a)
+				qnp1[s][a] = getReward(s, a, timestep) + future_expected_reward(qn, s, a)
 		qn = qnp1
-
-		new_policy = [greedy_policy(qn[s], s) for s in range(nStates)]
+		new_policy =  [greedy_policy(qn[s], s) for s in range(nStates)]
 		policy.append(new_policy)
-
-
 	return policy[::-1]
 
 
 def greedy_policy(q, s):
 	"""
-	return the list of indexes with the greater values in a_list
+	return list of greedy feasible actions
 	"""
 	result = []
-	if not q:
+	if q is None:
 		return result
 	max_val = q[0]
 	for action in getFeasibleActions(s):
@@ -75,7 +72,7 @@ def greedy_policy(q, s):
 			max_val = q_value
 	return result
 
-def discountReward(qn, s, a):
+def future_expected_reward(qn, s, a):
 	result = 0
 	for sp in range(nStates):
 		# prob = transitionTable[s][a][sp]
@@ -369,7 +366,7 @@ def test_get_load():
 			print("not feasible")
 		print("")
 
-	policy = solve(1)
+	policy = value_iteration()
 
 	for i in range(horizon):
 		print("time step: | EVs Charging State |  best actions  ")
