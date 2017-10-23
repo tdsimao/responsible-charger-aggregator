@@ -31,13 +31,14 @@ def price_transition_probability(from_price, to_price, timestep=0):
 
 
 if __name__ == "__main__":
-	fl = init_ev_fleet(6, [1,2], 12)
+	fl = init_ev_fleet(3, [1,2,1], 12)
 
 	grid_file = 'grids/grid_1.txt'
 
-	mdp = MDP(fl, grid_file, 12, get_prices_func=get_prices, price_transition_probability_func=price_transition_probability)
+	mdp = MDP(fl, grid_file, 12, get_prices_func=get_prices)#, price_transition_probability_func=price_transition_probability)
 	# mdp.print_transition_table()
-	mdp.print_policy_expected_value()
+	policy, expected_val = mdp.value_iteration()
+	mdp.print_policy_expected_value(policy, expected_val)
 	print(mdp.fleet)
 
 	# test_state_to_list_to_state(mdp)

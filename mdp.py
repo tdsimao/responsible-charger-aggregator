@@ -237,9 +237,7 @@ class MDP:
 							print("%d" % val, end=endstr)
 				print("]")
 
-	def print_policy_expected_value(self):
-		policy, expected_value = self.value_iteration()
-
+	def print_policy_expected_value(self, policy, expected_value):
 		for i in range(self.horizon):
 			print("time step: | price | EVs Charging State |  best actions  ")
 			for p_ind, price in enumerate(self.get_prices(i)):
