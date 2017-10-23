@@ -5,7 +5,7 @@ class Fleet:
 		self.vehicles = vehicles
 		# constructor
 
-	def addVehicle(self, vehicle):
+	def add_vehicle(self, vehicle):
 		self.vehicles.append(vehicle)
 
 	def size(self):
