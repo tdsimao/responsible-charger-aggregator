@@ -4,15 +4,18 @@
 import numpy as np
 from pprint import pprint
 from math import pow, ceil
+from functools import lru_cache
 from EV import EV
 from grid import Grid
+
+MAXIMUM_PRICE = 100
 
 TRANSITION_TABLE_PRINT_FLOAT_FLAG = False
 
 nEVs = 2 		 # The number of EVs
 nChargeSteps = 4 # The number of timesteps needed to charge at full charge rate
 nChargeRates = 2 # Currently binary charging (full or nothing)
-nPrices = 5 	 # The number of prices categories
+nPrices = 1 	 # The number of prices categories
 
 nChargeStates = int(pow(nChargeSteps, nEVs)) # Currently assumes all EVs have the same charge rate and time
 # nStates = int(nChargeStates * nPrices)
@@ -24,8 +27,7 @@ reward = []
 transitionTable = []
 evsList = []
 grid = None
-
-prices = [p for p in range(1,10)]
+feasible_actions = None
 
 def MDP(discount):
 	initializeTransitionTable()
@@ -33,28 +35,60 @@ def MDP(discount):
 	optimalAction = solve(discount)
 	return optimalAction
 
-# Solve MDP and return optimal action
-# @param discountFactor the discount factor
-# @return optimal action to select in state s_0
-def solve(discountFactor):
-	assert discountFactor >= 0 and discountFactor <= 1.0
-	bestAction = -1
-	qn = [[0 for a in range(nActions)] for s in range(nStates)]
-	pprint(qn)
-	# The value iteration algorithm
-	for timestep in range(horizon, 0, -1):
-		qnp1 = [[0 for a in range(nActions)] for s in range(nStates)]
-		for s in range(nStates):
-			for a in getFeasibleActions(s):
-				qnp1[s][a] = getReward(s, a, timestep) + discountFactor * discountReward(qn, s, a)
-		qn = qnp1
-		pprint(qn)
-		print("")
-	# pprint(qn)
-	bestAction = max(range(len(qn[0])), key=qn[0].__getitem__)
-	return bestAction
 
-def discountReward(qn, s, a):
+def value_iteration():
+	"""
+
+	:return: greedy policy for each time step and expected value of each state at timestep 0
+	"""
+	qn = np.zeros((len(get_prices(horizon)), nStates, nActions))
+	policy = []
+	# The value iteration algorithm
+	for t in reversed(range(horizon)):
+		prices = get_prices(t)
+		qnp1 = np.zeros((len(prices), nStates, nActions))
+		for price_ind, price in enumerate(prices):
+			for s in range(nStates):
+				for a in feasible_actions_in_state(s):
+					expected_future_reward = 0
+					for future_price_ind, future_price in enumerate(get_prices(t + 1)):
+						expected_future_reward += future_expected_reward(qn[future_price_ind], s, a) * \
+													getTimePriceToPriceProb(t, price, future_price)
+					qnp1[price_ind][s][a] = getReward(s, a, price) + expected_future_reward
+		qn = qnp1
+		new_policy = []
+		for price_ind, _ in enumerate(prices):
+			new_policy.append([greedy_policy(qn[price_ind][s], s) for s in range(nStates)])
+		policy.append(new_policy)
+
+	expected_values = []
+	for s in range(nStates):
+		expected_values.append([])
+		for price_ind, _ in enumerate(get_prices(0)):
+			expected_values[s].append(max(future_expected_reward(qn[price_ind], s, a) for a in range(nActions)))
+
+	return policy[::-1], expected_values
+
+
+def greedy_policy(q, s):
+	"""
+	return list of greedy feasible actions
+	"""
+	result = []
+	if q is None:
+		return result
+	max_val = q[0]
+	for action in feasible_actions_in_state(s):
+		q_value = q[action]
+		if q_value == max_val:
+			result.append(action)
+		elif q_value > max_val:
+			result = [action]
+			max_val = q_value
+	return result
+
+
+def future_expected_reward(qn, s, a):
 	result = 0
 	for sp in range(nStates):
 		# prob = transitionTable[s][a][sp]
@@ -65,31 +99,31 @@ def discountReward(qn, s, a):
 			result += prob * m
 	return result
 
-def getFeasibleActions(s):
-	assert 0 <= s < nStates
-	global grid, evsList
 
-	actions = []
-	sList = chargeStateToList(s)
-	batAtMax = [False for x in range(len(evsList))]
-	for i in range(len(evsList)):
-		if sList[i] >= evsList[i].batteryMax:
-			batAtMax[i] = True
-	npBat = np.array(batAtMax)
-	
-	for action in range(nActions):
-		aList = chargeActionToList(action)
-		for c in aList:
-			if c == 1:
-				c = True
-			else:
-				c = False
-		npA = np.array(aList)
-		result = npA & npBat
-		if not any(result):
+def grid_feasible_actions():
+	global grid, feasible_actions
+	if feasible_actions is None:
+		feasible_actions = []
+		for action in range(nActions):
 			if grid.feasible(get_load(evsList, action, grid)):
-				actions.append(action)
-	return actions
+				feasible_actions.append(action)
+	return feasible_actions
+
+
+@lru_cache(maxsize=2*nStates)
+def feasible_actions_in_state(s):
+	assert 0 <= s < nStates
+	global evsList
+	vehicles_charge = np.array(chargeStateToList(s))
+	max_charge = np.array(list(ev.batteryMax for ev in evsList))
+	vehicles_charged = vehicles_charge == max_charge
+
+	result = []
+	for action in grid_feasible_actions():
+		charging_vehicles = np.array(chargeActionToList(action)).astype(bool)
+		if not any(charging_vehicles & vehicles_charged):
+			result.append(action)
+	return result
 
 
 def initializeRewardTable():
@@ -104,20 +138,19 @@ def initializeRewardTable():
 	reward[0][1] = 100.0
 	reward[0][2] = 100.0
 
-def getReward(state, action, timestep):
-	# TODO avoid charging/rewarding charging full vehicles
-	#Compute number of charging vehicles 
+def getReward(state, action, price):
 	chargeList = chargeActionToList(action)
 	num_evs_charging = sum(chargeList)
-	#multiply by price set
-	return (100 - getPrice(timestep)) * num_evs_charging
+	return (MAXIMUM_PRICE - price) * num_evs_charging
 
-def getPrice(timestep):
+def get_prices(timestep):
 	if timestep < 3:
-		return 70
+		return [70]
 	if timestep < 7:
-		return 30
-	return 90
+		return [30]
+	if timestep < horizon:
+		return [90]
+	return [float('inf')]
 
 def getPriceToPriceProb(fromPrice, toPrice):
 	# return probability of going from a price to another price
@@ -136,7 +169,7 @@ def getTimePriceToPriceProb(currTime, fromPrice, toPrice):
 	# return priceLevelTable[currTime, fromPrice, toPrice]
 
 	# Currently return an equal probability to go from any price to any price at any time
-	return 1.0/nPrices
+	return 1.0/len(get_prices(currTime + 1))
 
 def chargeStateToList(chargeState):
 	chargeList = []
@@ -325,7 +358,7 @@ def test_get_load():
 	global evsList, nEVs, nChargeStates, nStates, nChargeRates, nActions, grid
 
 	evsList =  [EV(0, 3, 3, 1, gridPos=2, deadline=23)]
-	evsList += [EV(0, 4, 4, 1, gridPos=2, deadline=23)]
+	evsList += [EV(0, 4, 4, 1, gridPos=1, deadline=23)]
 
 	nEVs = len(evsList)
 	nChargeStates = 1
@@ -348,7 +381,20 @@ def test_get_load():
 			print("not feasible")
 		print("")
 
-	solve(1)
+	policy, expected_value = value_iteration()
+
+	for i in range(horizon):
+		print("time step: | price | EVs Charging State |  best actions  ")
+		for p_ind, price in enumerate(get_prices(i)):
+			for s in range(nStates):
+				actions = [chargeActionToList(a) for a in policy[i][p_ind][s]]
+				print("{:11}| {:5} | {:19}| {}".format(i, price, str(chargeStateToList(s)), actions))
+		print("")
+
+	print("price | EVs Charging State | expected value time step 0")
+	for p_ind, price in enumerate(get_prices(0)):
+		for s in range(nStates):
+			print("{:5} | {:19}| {}".format(price, str(chargeStateToList(s)), expected_value[s][p_ind]))
 
 
 def test_with_unfeasible_loads():
@@ -367,19 +413,22 @@ def test_with_unfeasible_loads():
 			print("not feasible")
 		print("")
 
-test_get_load()
-# test_with_unfeasible_loads()
-# initializeIdenticalEVFleet(0, 2, 1, [0,1,2,3], 23)
-# initTestEVFleet()
 
-# testStateToListToState()
-# testActionToList()
-# testStatePlusAction()
+if __name__ == "__main__":
+	test_get_load()
+	# test_with_unfeasible_loads()
+	# initializeIdenticalEVFleet(0, 2, 1, [0,1,2,3], 23)
+	# initTestEVFleet()
 
-# printEVs()
+	# testStateToListToState()
+	# testActionToList()
+	# testStatePlusAction()
 
-# initializeTransitionTable()
-# printTransitionTable()
-# OR
-# pprint(transitionTable)
+	# printEVs()
 
+	# initializeTransitionTable()
+	# printTransitionTable()
+	# OR
+	# pprint(transitionTable)
+
+	pass
