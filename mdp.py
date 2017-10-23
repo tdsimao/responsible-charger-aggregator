@@ -14,7 +14,7 @@ TRANSITION_TABLE_PRINT_FLOAT_FLAG = False
 
 class MDP:
 
-	def __init__(self, fleet, grid, horizon=12):
+	def __init__(self, fleet, grid, horizon=12, get_prices_func=None, price_transition_probability_func=None):
 		self.fleet = fleet
 
 		if isinstance(grid, str):
@@ -30,7 +30,9 @@ class MDP:
 		self.num_charge_rates = 2 # Binary charging
 		self.num_actions = int(pow(self.num_charge_rates, self.fleet.size()))
 		self.feasible_actions = None
-		self.feasible_actions = self.grid_feasible_actions() # TODO
+		self.feasible_actions = self.grid_feasible_actions()
+		self.get_prices_func = get_prices_func
+		self.price_transition_probability_func = price_transition_probability_func
 
 	# Solve MDP and return optimal action
 	# @param discountFactor the discount factor
@@ -121,14 +123,11 @@ class MDP:
 		return result
 
 	def get_prices(self, timestep):
-		# TODO replace with actual prices
-		if timestep < 3:
-			return [70]
-		if timestep < 7:
-			return [30]
-		if timestep < self.horizon:
-			return [90]
-		return [float('inf')]
+		if self.get_prices_func is not None:
+			return self.get_prices_func(timestep)
+		else:
+			# TODO placeholder function
+			return [float('inf')]
 
 	def transition_probability(self, action, from_state, to_state):
 		#TODO
@@ -138,8 +137,11 @@ class MDP:
 			return 0
 
 	def price_transition_probability(self, from_price, to_price, timestep=0):
-		#TODO replace with actual prob of going from price to price at timestep
-		return 1.0/len(self.get_prices(timestep)) # Placeholder value
+		if self.price_transition_probability_func is not None:
+			return self.price_transition_probability_func(from_price, to_price, timestep)
+		else:
+			#TODO placeholder function
+			return 1.0/(len(self.get_prices(timestep)))
 
 	def get_reward(self, state, action, price):
 		# TODO
