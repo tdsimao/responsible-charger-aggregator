@@ -138,17 +138,12 @@ class MDP:
 		if self.price_transition_probability_func is not None:
 			return self.price_transition_probability_func(from_price, to_price, timestep)
 		else:
-			#TODO placeholder function
-			return 1.0/(len(self.get_prices(timestep)))
+			return 1.0/(len(self.get_prices(timestep+1)))
 
 	def get_reward(self, state, action, price):
-		# TODO
-		# TODO avoid charging/rewarding charging full vehicles
-		#Compute number of charging vehicles 
 		charge_list = self.charge_action_to_list(action)
 		num_evs_charging = sum(charge_list)
-		#multiply by price set
-		return (100 - price) * num_evs_charging
+		return (MAXIMUM_PRICE - price) * num_evs_charging
 
 	def charge_state_to_list(self, charge_state):
 		charge_list = []
