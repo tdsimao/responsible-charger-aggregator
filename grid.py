@@ -1,4 +1,6 @@
 import numpy as np
+from pprint import pprint
+
 
 
 class Grid(object):
@@ -20,7 +22,6 @@ class Grid(object):
         matrix = np.zeros([self.n_nodes, self.n_nodes])
         for (i, j), bound in zip(self.lines, alist):
             matrix[i][j] = bound
-            matrix[j][i] = bound
         return matrix
 
     @staticmethod
@@ -51,15 +52,45 @@ class Grid(object):
                     reactances=reactances,
                     line_bounds=line_bounds)
 
+    def save_to_file(self, file_name):
+        with open(file_name, 'w') as f:
+            f.write("numBus={}\n".format(self.n_nodes))
+            f.write("numLines={}\n".format(self.n_lines))
+            f.write("# LINE DATA (from bus, to bus, circuit id, reactance x in p.u., MVA rating)\n")
+            for i, j in self.lines:
+                f.write("{} {} 0 {} {}\n".format(i, j, self.x[i, j], self.line_bounds[i, j]))
+
+    @staticmethod
+    def create_tree_grid(high, branch_factor, reactance=.1, line_bound=100):
+        assert high > 1
+        current_node = 0
+        last_nodes = [0]
+        lines, reactances, line_bounds = [], [], []
+        for i in range(1, high):
+            new_nodes = []
+            for node in last_nodes:
+                for j in range(branch_factor):
+                    current_node += 1
+                    lines.append((node, current_node))
+                    reactances.append(reactance)
+                    line_bounds.append(line_bound)
+                    new_nodes.append(current_node)
+            last_nodes = new_nodes
+        return Grid(n_nodes=current_node+1,
+                    n_lines=len(lines),
+                    lines=lines,
+                    reactances=reactances,
+                    line_bounds=line_bounds)
+
     def _compute_ptdfs(self):
         """
         Precomputing Power Transfer Distribution Factors
         """
         z = self._compute_z()
         s = np.zeros([self.n_nodes, self.n_nodes, self.n_nodes])
-        for i in range(self.n_nodes):
+        for k in range(self.n_nodes):
             for l in range(self.n_nodes):
-                for k in range(self.n_nodes):
+                for i in range(self.n_nodes):
                     if k == 0 and l != 0:
                         s[k, l, i] = -1 * z[l-1, i-1]
                     elif k != 0 and l == 0:
@@ -74,12 +105,16 @@ class Grid(object):
 
     def _compute_m(self):
         m = np.zeros([self.n_nodes, self.n_nodes])
+        for i, j in self.lines:
+            x = self.x[i,j]
+            m[i][j] += 1.0 / x
+            m[j][i] += 1.0 / x
+            m[i][i] += 1.0 / x
+            m[j][j] += 1.0 / x
         for i in range(self.n_nodes):
             for j in range(self.n_nodes):
                 if i != j:
-                    m[i, j] = -1./self.x[i, j]
-                else:
-                    m[i, j] = sum(1./self.x[k, j] for k in range(self.n_nodes) if k != j)
+                    m[i][j] = -1.0 * m[i][j]
         return m
 
     def compute_flow(self, loads):

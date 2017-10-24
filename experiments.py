@@ -7,7 +7,7 @@ from grid import Grid
 
 
 def init_ev_fleet(num_charge_timesteps, grid_pos_list, deadline):
-	return initialize_identical_EV_fleet(init_batt_level=0, batt_max	=num_charge_timesteps, charge_rate=1,grid_pos_list= grid_pos_list,deadline=deadline)
+	return initialize_identical_EV_fleet(init_batt_level=0, batt_max=num_charge_timesteps, charge_rate=1, grid_pos_list= grid_pos_list,deadline=deadline)
 
 def initialize_identical_EV_fleet(init_batt_level, batt_max, charge_rate, grid_pos_list, deadline):
 	fleet = Fleet()
@@ -114,6 +114,15 @@ def plot_experiment(data_file, output_file):
 	print("plot saved at: " + output_file)
 
 
+def run_experiment2(output_file):
+	grid = Grid.create_tree_grid(high=3, branch_factor=2)
+	# increase number of veehicles
+	for i in range(1, grid.n_nodes):
+		fleet = init_ev_fleet(4, range(1, i+1), 12)
+		mdp = MDP(fleet, grid, 12,
+				  get_prices_func=get_prices)
+		policy, expected_val = mdp.value_iteration()
+		print(i, expected_val[0][0])
 
 if __name__ == "__main__":
 	run_experiment1(fleet=init_ev_fleet(4, [1, 2], 12), output_file="data/experiment1_fleet1.csv")
@@ -122,3 +131,7 @@ if __name__ == "__main__":
 	run_experiment1(fleet=init_ev_fleet(4, [1, 1], 12), output_file="data/experiment1_fleet2.csv")
 	plot_experiment(data_file="data/experiment1_fleet2.csv", output_file='data/experiment1_fleet2.pdf')
 
+
+	run_experiment2(output_file='data/experiment2.csv')
+	# grid.save_to_file("grids/grid_teste.txt")
+	# print(grid.n_nodes)
