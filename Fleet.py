@@ -1,9 +1,9 @@
-from EV import EV
-
 class Fleet:
-	def __init__(self, vehicles=[]):
-		self.vehicles = vehicles
-		# constructor
+	def __init__(self, vehicles=None):
+		if vehicles is None:
+			self.vehicles = list()
+		else:
+			self.vehicles = vehicles
 
 	def add_vehicle(self, vehicle):
 		self.vehicles.append(vehicle)
@@ -13,8 +13,6 @@ class Fleet:
 
 	def __str__(self):
 		result = ""
-		for i in range(self.size()):
-			result += str(self.vehicles[i]) + "\n"
+		for v in self.vehicles:
+			result += str(v) + "\n"
 		return result
-
-
