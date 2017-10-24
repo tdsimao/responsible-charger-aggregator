@@ -86,16 +86,14 @@ class MDP:
 				max_val = q_value
 		return result
 
-
 	def future_expected_reward(self, qn, s, a):
 		result = 0
-		for sp in self.get_states():
-			prob = self.transition_probability(a, s, sp)
-			if prob is not 0:
-				m = max(qn[sp])
-				result += prob * m
+		for prob, sp in self.future_states_probabilities(s, a):
+			result += prob * max(qn[sp])
 		return result
 
+	def future_states_probabilities(self, from_state, action):
+		return [(1,self.charge_from_state(from_state, action))]
 
 	def grid_feasible_actions(self):
 		if self.feasible_actions is None:
@@ -108,7 +106,7 @@ class MDP:
 	def get_states(self):
 		return range(self.num_states)
 
-	# @lru_cache(maxsize=2*(self.nStates)) #TODO unfortunately does not work
+	@lru_cache(maxsize=10000) #TODO set maxsize according to the number of states
 	def feasible_actions_in_state(self, s):
 		assert 0 <= s < self.num_states
 		vehicles_charge = np.array(self.charge_state_to_list(s))
