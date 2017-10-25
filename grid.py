@@ -130,7 +130,7 @@ class Grid(object):
         return flow
 
     def line_flow(self, k, l, loads):
-        return sum(loads[i] * 1. / self.x[k, l] * self.S[k, l, i] for i in range(self.n_nodes - 1))
+        return sum(loads[i] * 1. / self.x[k, l] * self.S[k, l, i] for i in range(1, self.n_nodes))
 
     def feasible(self, loads):
         flow = self.compute_flow(loads)
