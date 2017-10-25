@@ -7,35 +7,47 @@
 3. Install numpy
 
 
+
 ## Experiments
 The file [experiments.py](./experiments.py) contains a set of experiments.
 
-The section [Running experiments](#Running experiments) shows how to use this file.
+The section [Running experiments](#running-experiments) shows how to use this file.
 
 ### Experiment 1
 Increase the probability of having low prices
 
 To run and plot the results of this experiment use the following command: 
-`experiments.py --experiments 1 --plots 1`
+`python3 experiments.py --experiments 1 --plots 1`
 
+**Results:**
+- [Vehicles well distributed](out/experiment1_fleet1.pdf)
+- [Vehicles in single node](out/experiment1_fleet2.pdf)
 
 ### Experiment 2
 Increase the number of vehicles in a given grid
 
 To run and plot the results of this experiment use the following command: 
-`experiments.py --experiments 2 --plots 2`
+`python3 experiments.py --experiments 2 --plots 2`
 
+
+**Results:**
+- [Incresing number of vehicles](out/experiment2.pdf)
 
 ### Prices
-To show `experiments.py --render_prices`
+To show `python3 experiments.py --render_prices`
 
 This prints the tables with price transition probability at each time step. 
 It also creates dot files with a graph representation 
 
 Use the script [render_dot_files.sh](./render_dot_files.sh) to create the pdf files
 
+
+**Graphs:**
+- [history independent price](out/price_transition_probability_func.dot.pdf)
+- [History dependent price](out/history_dependent_price_transition_probability_func.dot.pdf)
+
 ### Running experiments
-With the command `experiments.py -h` you can have access to the options available.
+With the command `python3 experiments.py -h` you can have access to the options available.
 ```
 usage: experiments.py [-h] [--experiments [EXP_ID [EXP_ID ...]]]
                       [--plots [EXP_ID [EXP_ID ...]]] [--render_prices]

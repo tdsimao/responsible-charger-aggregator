@@ -113,11 +113,10 @@ def run_experiment1(fleet, output_file):
 				  get_prices_func=get_prices,
 				  price_transition_probability_func=history_dependent_price_transition_probability_func(p))
 		policy, expected_val = mdp.value_iteration()
-		mdp.print_policy_expected_value(policy, expected_val)
 		results_time_dependent[p] = expected_val[0][0]
 
 	data_frame = pd.DataFrame.from_dict(
-		{"time independent": results_time_independent, "time dependent": results_time_dependent})
+		{"History independent": results_time_independent, "History dependent": results_time_dependent})
 	data_frame.to_csv(output_file)
 
 
