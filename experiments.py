@@ -125,13 +125,19 @@ def run_experiment2(output_file):
 		print(i, expected_val[0][0])
 
 if __name__ == "__main__":
-	run_experiment1(fleet=init_ev_fleet(4, [1, 2], 12), output_file="data/experiment1_fleet1.csv")
-	plot_experiment(data_file="data/experiment1_fleet1.csv", output_file='data/experiment1_fleet1.pdf')
+	import argparse
 
-	run_experiment1(fleet=init_ev_fleet(4, [1, 1], 12), output_file="data/experiment1_fleet2.csv")
-	plot_experiment(data_file="data/experiment1_fleet2.csv", output_file='data/experiment1_fleet2.pdf')
+	parser = argparse.ArgumentParser()
+	parser = argparse.ArgumentParser(description='Run the experiments.')
+	parser.add_argument('experiments', metavar='N', type=int, nargs='*',
+						help='list of experiments to be executed')
+	args = parser.parse_args()
+
+	if 1 in args.experiments:
+		run_experiment1(fleet=init_ev_fleet(4, [1, 2], 12), output_file="out/experiment1_fleet1.csv")
+		plot_experiment(data_file="out/experiment1_fleet1.csv", output_file='out/experiment1_fleet1.pdf')
+
+		run_experiment1(fleet=init_ev_fleet(4, [1, 1], 12), output_file="out/experiment1_fleet2.csv")
+		plot_experiment(data_file="out/experiment1_fleet2.csv", output_file='out/experiment1_fleet2.pdf')
 
 
-	run_experiment2(output_file='data/experiment2.csv')
-	# grid.save_to_file("grids/grid_teste.txt")
-	# print(grid.n_nodes)
