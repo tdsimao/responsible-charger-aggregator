@@ -177,9 +177,8 @@ class MDP:
 		return charge_state
 
 	def charge_list_apply_action_list(self, charge_list, action_list):
-		if(len(charge_list) != len(action_list)):
-			# TODO throw error?
-			return None
+		assert len(charge_list) == len(action_list)
+
 		for i in range(len(charge_list)):
 			ev = self.fleet.vehicles[i]
 			new_charge = charge_list[i] + action_list[i]
@@ -201,9 +200,7 @@ class MDP:
 		for ev_ind, charging_rate in enumerate(self.charge_action_to_list(action)):
 			if charging_rate > 0:
 				ev = self.fleet.vehicles[ev_ind]
-				power_consumption = 200.  # power consumption should be a parameter of the EV
-				# multiply by charging in case of multiple chargin states
-				load[ev.grid_position] += ev.charge_rate * power_consumption * charging_rate
+				load[ev.grid_position] += ev.charge_rate * ev.power_consumption * charging_rate
 		total_load = sum(load)
 		load[0] = -total_load
 		return load

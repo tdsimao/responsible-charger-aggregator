@@ -1,7 +1,7 @@
 from math import ceil
 
 class EV:
-	def __init__(self, batt_level, batt_max, batt_goal, charge_rate, grid_pos, deadline):
+	def __init__(self, batt_level, batt_max, batt_goal, charge_rate, grid_pos, deadline, power_consumption=200):
 		self.battery_level = batt_level	# The current battery level
 		self.battery_max = batt_max		# The maximum battery level
 		self.battery_goal = batt_goal		# The minimum charge required before the deadline
@@ -9,6 +9,7 @@ class EV:
 		self.grid_position = grid_pos		# The node where this EV is charging on the grid
 		self.charge_deadline = deadline	# The time deadline which the EV must be chage by
 		self.num_charge_steps = self.num_timesteps_to_charge_total()
+		self.power_consumption = power_consumption
 
 	def is_fully_charged(self):
 		return self.battery_level >= self.battery_max
