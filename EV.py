@@ -1,30 +1,31 @@
 from math import ceil
 
 class EV:
-	def __init__(self, battLevel, battMax, battGoal, chargeRate, gridPos, deadline):
-		self.batteryLevel = battLevel	# The current battery level
-		self.batteryMax = battMax		# The maximum battery level
-		self.batteryGoal = battGoal		# The minimum charge required before the deadline
-		self.chargeRate = chargeRate	# Charge rate of battery
-		self.gridPosition = gridPos		# The node where this EV is charging on the grid
-		self.chargeDeadline = deadline	# The time deadline which the EV must be chage by
-		self.nChargeSteps = self.numTimestepsToChargeTotal()
+	def __init__(self, batt_level, batt_max, batt_goal, charge_rate, grid_pos, deadline, power_consumption=200):
+		self.battery_level = batt_level	# The current battery level
+		self.battery_max = batt_max		# The maximum battery level
+		self.battery_goal = batt_goal		# The minimum charge required before the deadline
+		self.charge_rate = charge_rate	# Charge rate of battery
+		self.grid_position = grid_pos		# The node where this EV is charging on the grid
+		self.charge_deadline = deadline	# The time deadline which the EV must be chage by
+		self.num_charge_steps = self.num_timesteps_to_charge_total()
+		self.power_consumption = power_consumption
 
-	def isFullyCharged(self):
-		return self.batteryLevel >= self.batteryMax
+	def is_fully_charged(self):
+		return self.battery_level >= self.battery_max
 
-	def isGoalCharged(self):
-		return self.batteryLevel >= self.batteryGoal
+	def is_goal_charged(self):
+		return self.battery_level >= self.battery_goal
 
-	def numTimestepsToChargeTotal(self):
-		return int(ceil(self.batteryMax / self.chargeRate) + 1)
+	def num_timesteps_to_charge_total(self):
+		return int(ceil(self.battery_max / self.charge_rate) + 1)
 
-	def numTimestepsToChargeToFull(self):
-		return int(ceil((self.batteryMax - self.batteryLevel) / self.chargeRate))
+	def num_timesteps_to_charge_to_full(self):
+		return int(ceil((self.battery_max - self.battery_level) / self.charge_rate))
 
-	def numTimestepsToChargeToGoal(self):
-		return int(ceil((self.batteryGoal - self.batteryLevel) / self.chargeRate))
+	def num_timesteps_to_charge_to_goal(self):
+		return int(ceil((self.battery_max - self.battery_level) / self.charge_rate))
 
 	def __str__(self):
-		return "EV @: %2d, battery: %3d/%3d, charge rate: %3d" % (self.gridPosition, self.batteryLevel, self.batteryMax, self.chargeRate)
+		return "EV @: %2d, battery: %3d/%3d, charge rate: %3d" % (self.grid_position, self.battery_level, self.battery_max, self.charge_rate)
 
