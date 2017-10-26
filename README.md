@@ -27,7 +27,7 @@ To run and plot the results of this experiment use the following command:
 Increase the number of vehicles in a given grid
 
 To run and plot the results of this experiment use the following command: 
-`python3 experiments.py --experiments 2 --plots 2`
+`python3 experiments.py --experiments 2 --horizon 8 --vehicles_per_line_capacity 1`
 
 
 **Results:**
@@ -43,7 +43,7 @@ Use the script [render_dot_files.sh](./render_dot_files.sh) to create the pdf fi
 
 
 **Graphs:**
-- [history independent price](out/price_transition_probability_func.dot.pdf)
+- [History independent price](out/price_transition_probability_func.dot.pdf)
 - [History dependent price](out/history_dependent_price_transition_probability_func.dot.pdf)
 
 ### Running experiments
@@ -51,6 +51,8 @@ With the command `python3 experiments.py -h` you can have access to the options 
 ```
 usage: experiments.py [-h] [--experiments [EXP_ID [EXP_ID ...]]]
                       [--plots [EXP_ID [EXP_ID ...]]] [--render_prices]
+                      [--horizon HORIZON]
+                      [--vehicles_per_line_capacity VEHICLES_PER_LINE_CAPACITY]
 
 Run the experiments.
 
@@ -61,6 +63,9 @@ optional arguments:
   --plots [EXP_ID [EXP_ID ...]]
                         list of experiments to be plotted
   --render_prices       render price transition
+  --horizon HORIZON     horizon for the test
+  --vehicles_per_line_capacity VEHICLES_PER_LINE_CAPACITY
+                        number of vehicles that each line support
 ```
 
 
@@ -68,6 +73,6 @@ The option `--experiments`  defines which experiments will be executed.
 
 The option `--plots` defines the plots that will be produce.
 
-This options are separated so you can plot partial results while the experiments are running.
+This options `--experiments` and `--plots` are separated so you can plot partial results while the experiments are running.
 
-The last option `--render_prices` show the prices used in the experiments.
+The option `--render_prices` show the prices used in the experiments.
