@@ -143,6 +143,8 @@ class MDP:
 	def get_reward(self, state, action, price):
 		charge_list = self.charge_action_to_list(action)
 		num_evs_charging = sum(charge_list)
+		if num_evs_charging == 0:
+			return 0
 		return (MAXIMUM_PRICE - price) * num_evs_charging
 
 	def charge_state_to_list(self, charge_state):
