@@ -1,11 +1,15 @@
 import random
+import time
+
 import numpy as np
 from math import pow, ceil
 from functools import lru_cache
+
 from EV import EV
 from Fleet import Fleet
 from grid import Grid
 from util import choose
+
 
 TRANSITION_TABLE_PRINT_FLOAT_FLAG = False
 
@@ -24,10 +28,9 @@ class MDP:
 		self.num_states = 1
 		for ev in self.fleet.vehicles:
 			self.num_states *= ev.num_charge_steps
-		self.num_charge_rates = 2 # Binary charging
+		self.num_charge_rates = 2  # Binary charging
 		self.num_actions = int(pow(self.num_charge_rates, self.fleet.size()))
 		self.feasible_actions = None
-		self.feasible_actions = self.grid_feasible_actions()
 		self.get_prices_func = get_prices_func
 		self.price_transition_func = price_transition_func
 		self.max_price = max_price
@@ -114,7 +117,7 @@ class MDP:
 	def get_actions(self):
 		return range(self.num_actions)
 
-	@lru_cache(maxsize=10000) #TODO set maxsize according to the number of states
+	@lru_cache(maxsize=10000)  # TODO set maxsize according to the number of states
 	def feasible_actions_in_state(self, s):
 		assert 0 <= s < self.num_states
 		vehicles_charge = np.array(self.charge_state_to_list(s))
@@ -260,6 +263,22 @@ class MDP:
 		for p_ind, price in enumerate(self.get_prices(0)):
 			for s in self.get_states():
 				print("{:5} | {:19}| {}".format(price, str(self.charge_state_to_list(s)), expected_value[s][p_ind]))
+
+	def solve_get_stats(self):
+		initial_time = time.time()
+		self.grid_feasible_actions()
+		grid_feasible_actions_time = time.time() - initial_time
+
+		initial_time = time.time()
+		policy, expected_value = self.value_iteration()
+		optimization_time = time.time() - initial_time
+
+		return {"# Actions": len(self.get_actions()),
+				"# Feasible actions": len(self.grid_feasible_actions()),
+				"# States": len(self.get_states()),
+				"Optimization time": optimization_time,
+				"Time to compute feasible actions": grid_feasible_actions_time,
+				"Expected value initial state": expected_value[0][0]}
 
 	def run_simulations(self, policy, initial_state=0, repetitions=100):
 		total_rewards = list()
@@ -434,3 +453,7 @@ if __name__ == "__main__":
 	test_coordinated_uncoordinated()
 	test_simulations(mdp_only_feasible_actions())
 	test_simulations(mdp_with_unfeasible_actions())
+	print(mdp_only_feasible_actions().solve_get_stats())
+	print(mdp_with_unfeasible_actions().solve_get_stats())
+	print(uncoordinated_mdp_with_unfeasible_actions().solve_get_stats())
+
