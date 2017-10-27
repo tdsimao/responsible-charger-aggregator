@@ -1,9 +1,11 @@
+import random
 import numpy as np
 from math import pow, ceil
 from functools import lru_cache
 from EV import EV
 from Fleet import Fleet
 from grid import Grid
+from util import choose
 
 TRANSITION_TABLE_PRINT_FLOAT_FLAG = False
 
@@ -91,12 +93,12 @@ class MDP:
 
 	def future_expected_reward(self, qn, s, a):
 		result = 0
-		for prob, sp in self.future_states_probabilities(s, a):
+		for sp, prob in self.future_states_probabilities(s, a):
 			result += prob * max(qn[sp])
 		return result
 
 	def future_states_probabilities(self, from_state, action):
-		return [(1,self.charge_from_state(from_state, action))]
+		return [(self.charge_from_state(from_state, action), 1)]
 
 	def grid_feasible_actions(self):
 		if self.feasible_actions is None:
@@ -133,7 +135,6 @@ class MDP:
 			return [30, 50]
 
 	def transition_probability(self, action, from_state, to_state):
-		#TODO
 		if to_state == self.charge_from_state(from_state, action):
 			return 1
 		else:
@@ -144,6 +145,13 @@ class MDP:
 			return self.price_transition_func(from_price, to_price, timestep)
 		else:
 			return 1.0/(len(self.get_prices(timestep+1)))
+
+	def future_prices_and_probabilities(self, from_price, timestep=0):
+		result = []
+		for ind, price in enumerate(self.get_prices(timestep+1)):
+			prob = self.price_transition_probability(from_price, price, timestep)
+			result.append((price, prob))
+		return result
 
 	def get_reward(self, state, action, price):
 		charge_list = self.charge_action_to_list(action)
@@ -203,13 +211,17 @@ class MDP:
 		return to_charge
 
 	def get_load(self, action):
+		grid_nodes_load = self.get_grid_nodes_load(action)
+		total_load = sum(grid_nodes_load)
+		grid_nodes_load[0] = -total_load
+		return grid_nodes_load
+
+	def get_grid_nodes_load(self, action):
 		load = np.zeros(self.grid.n_nodes)
 		for ev_ind, charging_rate in enumerate(self.charge_action_to_list(action)):
 			if charging_rate > 0:
 				ev = self.fleet.vehicles[ev_ind]
 				load[ev.grid_position] += ev.charge_rate * ev.power_consumption * charging_rate
-		total_load = sum(load)
-		load[0] = -total_load
 		return load
 
 	def print_transition_table(self):
@@ -248,6 +260,57 @@ class MDP:
 		for p_ind, price in enumerate(self.get_prices(0)):
 			for s in self.get_states():
 				print("{:5} | {:19}| {}".format(price, str(self.charge_state_to_list(s)), expected_value[s][p_ind]))
+
+	def run_simulations(self, policy, initial_state=0, repetitions=100):
+		total_rewards = list()
+		for i in range(repetitions):
+			results = self.run_simulation(initial_state, policy)
+			total_rewards.append(results["total_reward"])
+
+		return {"average_reward": np.average(total_rewards), "error": np.std(total_rewards)}
+
+	def run_simulation(self, initial_state, policy):
+		loads = list()
+		total_loads = list()
+		flows = list()
+		rewards = list()
+		total_reward = 0
+
+		current_state = initial_state
+		price_ind = 0  # TODO choose a price randomly based on the price transition function
+		current_price = self.get_prices(0)[price_ind]
+		price_ind = 0
+		for timestep in range(self.horizon):
+			action = random.choice(policy[timestep][price_ind][current_state])
+			reward = self.get_reward(current_state, action, current_price)
+
+			load = self.get_load(action)
+			loads.append(load)
+			total_loads.append(-load[0])
+			loads.append(self.get_load(action))
+			flows.append(self.grid.compute_flow(load))
+			rewards.append(reward)
+			total_reward += reward
+
+			next_state = self.get_next_state(current_state, action, timestep)
+			next_price = self.get_next_price(current_price, timestep)
+			next_price_ind = self.get_prices(timestep).index(next_price)
+			# print(self.charge_state_to_list(current_state), current_price, self.charge_action_to_list(action), self.charge_state_to_list(next_state), reward, current_price)
+			current_state = next_state
+			current_price = next_price
+			price_ind = next_price_ind
+		return {"loads": loads,
+				"total_loads": total_loads,
+				"flows": flows,
+				"rewards": rewards,
+				"total_reward": total_reward}
+
+	def get_next_state(self, state, action, timestep):
+		return choose(self.future_states_probabilities(from_state=state, action=action))
+
+	def get_next_price(self, price, timestep):
+		return choose(self.future_prices_and_probabilities(price, timestep))
+
 
 
 class UncoordinatedMDP(MDP):
@@ -307,12 +370,7 @@ def test_state_plus_action():
 			print(mdp.charge_list_to_state(csl))
 
 
-def test_with_unfeasible_loads():
 	test_loads_feasibility(mdp_only_feasible_actions())
-
-
-def test_only_feasible_loads():
-	test_loads_feasibility(mdp_with_unfeasible_actions())
 
 
 def test_loads_feasibility(mdp):
@@ -359,12 +417,20 @@ def test_coordinated_uncoordinated():
 		for s in mdp_coordinated_feasible.get_states():
 			assert ev_coordinated_feasible[s][p_ind] == ev_uncoordinated[s][p_ind]
 
+def test_simulations(mdp):
+	policy, expected_value = mdp.value_iteration()
+	print("expected_value: " + str(expected_value[0][0]))
+	results = mdp.run_simulations(policy=policy, initial_state=0, repetitions=300)
+	for key, result in results.items():
+		print(key + ": " + str(result))
 
 if __name__ == "__main__":
 	test_state_to_list_to_state()
 	test_action_to_list()
 	test_state_plus_action()
-	test_only_feasible_loads()
-	test_with_unfeasible_loads()
+	test_loads_feasibility(mdp_with_unfeasible_actions())
+	test_loads_feasibility(mdp_only_feasible_actions())
 	test_value_iteration()
 	test_coordinated_uncoordinated()
+	test_simulations(mdp_only_feasible_actions())
+	test_simulations(mdp_with_unfeasible_actions())

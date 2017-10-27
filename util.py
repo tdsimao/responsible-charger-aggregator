@@ -1,4 +1,5 @@
 from gurobipy import *
+import random
 
 
 def solve_lp(model, show_results=True):
@@ -30,3 +31,12 @@ def print_lp(m):
     m.write('model.lp')
     with open('model.lp') as f:
         print(f.read())
+
+
+def choose(options):
+    r = random.random()
+    t = 0
+    for op, prob in options:
+        t += prob
+        if r < t:
+            return op
