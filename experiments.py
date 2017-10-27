@@ -117,7 +117,7 @@ def experiment1_price_transition(fleet, grid, horizon, price_transition):
 	for p in np.arange(0.0, 1 + STEP_SIZE, STEP_SIZE):
 		mdp = MDP(fleet, grid, horizon,
 				  get_prices_func=get_prices,
-				  price_transition_probability_func=price_transition(p))
+				  price_transition_func=price_transition(p))
 		policy, expected_val = mdp.value_iteration()
 		restults[p] = expected_val[0][0]
 	return restults
