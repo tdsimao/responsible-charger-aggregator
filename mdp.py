@@ -264,7 +264,7 @@ class MDP:
 			for s in self.get_states():
 				print("{:5} | {:19}| {}".format(price, str(self.charge_state_to_list(s)), expected_value[s][p_ind]))
 
-	def solve_get_stats(self):
+	def solve_get_stats(self, simulation_repetions=300):
 		initial_time = time.time()
 		self.grid_feasible_actions()
 		grid_feasible_actions_time = time.time() - initial_time
@@ -273,12 +273,18 @@ class MDP:
 		policy, expected_value = self.value_iteration()
 		optimization_time = time.time() - initial_time
 
+		simulation_results = self.run_simulations(policy=policy, initial_state=0, repetitions=simulation_repetions)
+
 		return {"# Actions": len(self.get_actions()),
 				"# Feasible actions": len(self.grid_feasible_actions()),
 				"# States": len(self.get_states()),
 				"Optimization time": optimization_time,
 				"Time to compute feasible actions": grid_feasible_actions_time,
-				"Expected value initial state": expected_value[0][0]}
+				"Expected value initial state": expected_value[0][0],
+				"average_reward" : simulation_results["average_reward"],
+				"error" : simulation_results["error"],
+				}
+
 
 	def run_simulations(self, policy, initial_state=0, repetitions=100):
 		total_rewards = list()
@@ -313,7 +319,7 @@ class MDP:
 
 			next_state = self.get_next_state(current_state, action, timestep)
 			next_price = self.get_next_price(current_price, timestep)
-			next_price_ind = self.get_prices(timestep).index(next_price)
+			next_price_ind = self.get_prices(timestep+1).index(next_price)
 			# print(self.charge_state_to_list(current_state), current_price, self.charge_action_to_list(action), self.charge_state_to_list(next_state), reward, current_price)
 			current_state = next_state
 			current_price = next_price

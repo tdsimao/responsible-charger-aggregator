@@ -37,6 +37,16 @@ def get_prices(timestep):
     return [float('inf')]
 
 
+def deterministic_prices(timestep):
+    if timestep < 4:
+        return [FIRST_PRICE]
+    if timestep < 8:
+        return [LOW_PRICE]
+    if timestep < 12:
+        return [LAST_PRICE]
+    return [float('inf')]
+
+
 def price_transition_probability_func(p):
     """
     create a new function that return a price transition function
@@ -105,11 +115,11 @@ def show_prices(get_prices_func, price_transition_func, horizon, output_file):
 
 def run_experiment1(fleet, horizon, output_file):
     grid_file = 'grids/grid_1.txt'
-    results_time_independent = experiment1_price_transition(fleet, grid_file, horizon,
-                                                            price_transition=price_transition_probability_func)
+    results_time_independent = exp_increasing_low_price_prob(fleet, grid_file, horizon,
+                                                             price_transition=price_transition_probability_func)
 
-    results_time_dependent = experiment1_price_transition(fleet, grid_file, horizon,
-                                                          price_transition=history_dependent_price_transition_probability_func)
+    results_time_dependent = exp_increasing_low_price_prob(fleet, grid_file, horizon,
+                                                           price_transition=history_dependent_price_transition_probability_func)
 
     data_frame = pd.DataFrame.from_dict(
         {"History independent": results_time_independent,
@@ -117,7 +127,7 @@ def run_experiment1(fleet, horizon, output_file):
     data_frame.to_csv(output_file)
 
 
-def experiment1_price_transition(fleet, grid, horizon, price_transition):
+def exp_increasing_low_price_prob(fleet, grid, horizon, price_transition):
     restults = {}
     STEP_SIZE = 0.01
     for p in np.arange(0.0, 1 + STEP_SIZE, STEP_SIZE):
@@ -155,7 +165,7 @@ def plot_experiment1(data_file, output_file):
 #
 
 
-MAX_NUMBER_OF_CARS = 8
+MAX_NUMBER_OF_CARS = 6
 TREE_HIGH = 2
 TREE_BRANCHING_FACTOR = 2
 
@@ -165,25 +175,41 @@ def run_experiment2(grid, horizon, output_file):
     print("Number of nodes in the grid: {}".format(grid.n_nodes))
     ev_s0 = {}
     profit_increase_rate = {1: 1}
+    processing_time = {}
+    average_reward = {}
+    error_reward = {}
+
     for num_vehicles in range(1, MAX_NUMBER_OF_CARS + 1):
         pos_vehicles = [i % (grid.n_nodes - 1) + 1 for i in range(num_vehicles)]
-        print(pos_vehicles)
         fleet = init_ev_fleet(4, pos_vehicles, horizon)
         mdp = MDP(fleet, grid, horizon, get_prices_func=get_prices)
-        policy, expected_val = mdp.value_iteration()
-        print(num_vehicles, expected_val[0][0])
-        ev_s0[num_vehicles] = expected_val[0][0]
+        results = mdp.solve_get_stats()
+
+        print(num_vehicles, results)
+
+        processing_time[num_vehicles] = results["Optimization time"]
+        ev_s0[num_vehicles] = results["Expected value initial state"]
+        average_reward[num_vehicles] = results["average_reward"]
+        error_reward[num_vehicles] = results["error"]
         if num_vehicles > 1:
             profit_increase_rate[num_vehicles] = (ev_s0[num_vehicles] - ev_s0[num_vehicles - 1]) / ev_s0[1]
 
         data_frame = pd.DataFrame.from_dict(
-            {"Expected value": ev_s0, "Profit increase rate": profit_increase_rate},
+            {"Expected value": ev_s0,
+             "Profit increase rate": profit_increase_rate,
+             "Optimization time": processing_time,
+             "Average reward": average_reward,
+             "error_reward": error_reward,
+             }
         )
         data_frame.to_csv(output_file)
 
 
-def plot_experiment2(data_file, output_file):
+def experiment2_plot_expected_value(data_file, output_file):
     data_frame = pd.DataFrame.from_csv(data_file)
+    data_frame = data_frame[["Expected value", "Average reward", 'Profit increase rate']]
+
+
     ax = data_frame.plot(secondary_y=['Profit increase rate'],
                          title="Diminishing profits for adding new vehicles")
 
@@ -192,6 +218,20 @@ def plot_experiment2(data_file, output_file):
     ax.right_ax.set_ylabel('Profit increase rate')
 
     ax.get_legend().set_bbox_to_anchor((0.5, .8))
+    fig = ax.get_figure()
+    fig.tight_layout()
+    fig.savefig(output_file)
+
+    print("plot saved at: " + output_file)
+
+
+def experiment2_plot_processing_time(data_file, output_file):
+    data_frame = pd.DataFrame.from_csv(data_file)[["Optimization time"]]
+    ax = data_frame.plot(logy=True)
+
+    ax.set_xlabel('Number of vehicles connected to the grid')
+    ax.set_ylabel('Processing time')
+
     fig = ax.get_figure()
     fig.tight_layout()
     fig.savefig(output_file)
@@ -234,12 +274,17 @@ if __name__ == "__main__":
         run_experiment2(grid, horizon=args.horizon, output_file='out/experiment2.csv')
 
     if 2 in args.plots:
-        plot_experiment2(data_file="out/experiment2.csv", output_file='out/experiment2.pdf')
+        experiment2_plot_expected_value(data_file="out/experiment2.csv", output_file='out/experiment2.pdf')
+        experiment2_plot_processing_time(data_file="out/experiment2.csv",
+                                         output_file='out/experiment2processing_time.pdf')
 
     if args.render_prices:
-        print("Printing pricesq 3")
+        print("Printing prices")
         show_prices(get_prices, price_transition_probability_func(.6), args.horizon,
                     "out/price_transition_probability_func.dot")
         print()
         show_prices(get_prices, history_dependent_price_transition_probability_func(.6), args.horizon,
                     "out/history_dependent_price_transition_probability_func.dot")
+        print()
+        show_prices(deterministic_prices, history_dependent_price_transition_probability_func(.6), args.horizon,
+                    "out/prices_deterministic.dot")

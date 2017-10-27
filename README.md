@@ -31,7 +31,7 @@ To run and plot the results of this experiment use the following command:
 
 
 **Results:**
-- [Incresing number of vehicles](out/experiment2.pdf)
+- [Incresing number of vehicles](out/experiment2.pdf) [Processing time](out/experiment2processing_time.pdf)
 
 ### Prices
 To show `python3 experiments.py --render_prices`
