@@ -249,22 +249,35 @@ class MDP:
 			for s in self.get_states():
 				print("{:5} | {:19}| {}".format(price, str(self.charge_state_to_list(s)), expected_value[s][p_ind]))
 
+
+class UncoordinatedMDP(MDP):
+
+	def grid_feasible_actions(self):
+		return self.get_actions()
 ################################################################################
 
 
 def mdp_only_feasible_actions():
-	evs = [EV(0, 3, 3, 1, grid_pos=2, deadline=23), EV(0, 4, 4, 1, grid_pos=2, deadline=23)]
+	evs = [EV(0, 3, 3, 1, grid_pos=1, deadline=23), EV(0, 4, 4, 1, grid_pos=2, deadline=23)]
 	fleet = Fleet(evs)
 	grid = Grid.load_grid_from_file('grids/grid_1.txt')
-	mdp = MDP(fleet=fleet, grid=grid)
+	mdp = MDP(fleet=fleet, grid=grid, horizon=6)
 	return mdp
 
 
 def mdp_with_unfeasible_actions():
+	evs = [EV(0, 3, 3, 1, grid_pos=1, deadline=23), EV(0, 4, 4, 1, grid_pos=1, deadline=23)]
+	fleet = Fleet(evs)
+	grid = Grid.load_grid_from_file('grids/grid_1.txt')
+	mdp = MDP(fleet=fleet, grid=grid, horizon=6)
+	return mdp
+
+
+def uncoordinated_mdp_with_unfeasible_actions():
 	evs = [EV(0, 3, 3, 1, grid_pos=1, deadline=23), EV(0, 4, 4, 1, grid_pos=2, deadline=23)]
 	fleet = Fleet(evs)
 	grid = Grid.load_grid_from_file('grids/grid_1.txt')
-	mdp = MDP(fleet=fleet, grid=grid, horizon=12)
+	mdp = UncoordinatedMDP(fleet=fleet, grid=grid, horizon=6)
 	return mdp
 
 
@@ -328,7 +341,23 @@ def test_value_iteration():
 	# should always be equal or smaller than the mdp with only feasible actions
 	for p_ind, price in enumerate(mdp_feasible.get_prices(0)):
 		for s in mdp_feasible.get_states():
-			assert ev_feasible[s][p_ind] <= ev_unfeasible[s][p_ind]
+			assert ev_unfeasible[s][p_ind] <= ev_feasible[s][p_ind]
+
+
+def test_coordinated_uncoordinated():
+	mdp_coordinated_feasible = mdp_only_feasible_actions()
+	policy_coordinated_feasible, ev_coordinated_feasible = mdp_coordinated_feasible.value_iteration()
+	mdp_coordinated_feasible.print_policy_expected_value(policy_coordinated_feasible, ev_coordinated_feasible)
+
+	mdp_uncoordinated = uncoordinated_mdp_with_unfeasible_actions()
+	policy_uncoordinated, ev_uncoordinated = mdp_uncoordinated.value_iteration()
+	mdp_uncoordinated.print_policy_expected_value(policy_uncoordinated, ev_uncoordinated)
+
+	# Expected value in a grid with mdp with feasible actions and the uncoordinated mdp
+	# should always be equal
+	for p_ind, price in enumerate(mdp_coordinated_feasible.get_prices(0)):
+		for s in mdp_coordinated_feasible.get_states():
+			assert ev_coordinated_feasible[s][p_ind] == ev_uncoordinated[s][p_ind]
 
 
 if __name__ == "__main__":
@@ -338,3 +367,4 @@ if __name__ == "__main__":
 	test_only_feasible_loads()
 	test_with_unfeasible_loads()
 	test_value_iteration()
+	test_coordinated_uncoordinated()
