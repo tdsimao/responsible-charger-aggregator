@@ -6,11 +6,13 @@ from pprint import pprint
 class Grid(object):
     def __init__(self, n_nodes, n_lines, lines, reactances, line_bounds):
         self.n_nodes = n_nodes
+        self.nodes = range(self.n_nodes)
         self.n_lines = n_lines
         self.lines = lines
         self.line_bounds = self._get_line_bounds(line_bounds)
         self.x = self._get_x(reactances)
         self.S = self._compute_ptdfs()
+
 
     def _get_x(self, reactances):
         return self._list_to_matrix(reactances)

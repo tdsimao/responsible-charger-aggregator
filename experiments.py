@@ -238,6 +238,52 @@ def experiment2_plot_processing_time(data_file, output_file):
 
     print("plot saved at: " + output_file)
 
+#
+# Experimet 3
+#
+
+def run_experiment3(grid, horizon, num_vehicles, output_file):
+    # increasing number of vehicles
+    print("Number of nodes in the grid: {}".format(grid.n_nodes))
+    ev_s0 = {}
+    profit_increase_rate = {1: 1}
+    processing_time = {}
+    average_reward = {}
+    error_reward = {}
+
+    pos_vehicles = [i % (grid.n_nodes - 1) + 1 for i in range(num_vehicles)]
+    fleet = init_ev_fleet(4, pos_vehicles, horizon)
+    mdp = MDP(fleet, grid, horizon, get_prices_func=get_prices)
+    policy, _ = mdp.value_iteration()
+    results = mdp.run_simulation(initial_state=0, policy=policy)
+
+    parsed_results = {k : results[k] for k in ["total_loads", "rewards", "accumulated_reward"]}
+    for node in grid.nodes:
+        parsed_results["load_node_{}".format(node)] = [results["loads"][i][node] for i in range(horizon)]
+    for n1, n2 in grid.lines:
+        parsed_results["flow_line_{}_{}".format(n1, n2)] = [abs(results["flows"][i][n1, n2]) for i in range(horizon)]
+
+    data_frame = pd.DataFrame.from_dict(parsed_results)
+    data_frame.to_csv(output_file)
+
+
+def experiment3_plot(data_file, output_file):
+    data_frame = pd.DataFrame.from_csv(data_file)
+    # data_frame = data_frame[["Expected value", "Average reward", 'Profit increase rate']]
+
+    ax = data_frame.plot()
+
+    # ax.set_xlabel('Number of vehicles connected to the grid')
+    # ax.set_ylabel('Expected value initial state')
+    # ax.right_ax.set_ylabel('Profit increase rate')
+
+    ax.get_legend().set_bbox_to_anchor((0.5, .8))
+    fig = ax.get_figure()
+    fig.tight_layout()
+    fig.savefig(output_file)
+
+    print("plot saved at: " + output_file)
+
 
 if __name__ == "__main__":
     import argparse
@@ -277,6 +323,17 @@ if __name__ == "__main__":
         experiment2_plot_expected_value(data_file="out/experiment2.csv", output_file='out/experiment2.pdf')
         experiment2_plot_processing_time(data_file="out/experiment2.csv",
                                          output_file='out/experiment2processing_time.pdf')
+
+    if 3 in args.experiments:
+        print("Experiment 3")
+        grid = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
+                                     line_bound=200 * args.vehicles_per_line_capacity)
+        run_experiment3(grid=grid, horizon=args.horizon, num_vehicles=2, output_file="out/experiment3.csv")
+
+    if 3 in args.plots:
+        experiment3_plot(data_file="out/experiment3.csv", output_file='out/experiment3.pdf')
+
+
 
     if args.render_prices:
         print("Printing prices")

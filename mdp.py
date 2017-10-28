@@ -290,7 +290,7 @@ class MDP:
 		total_rewards = list()
 		for i in range(repetitions):
 			results = self.run_simulation(initial_state, policy)
-			total_rewards.append(results["total_reward"])
+			total_rewards.append(results["accumulated_reward"][-1])
 
 		return {"average_reward": np.average(total_rewards), "error": np.std(total_rewards)}
 
@@ -299,6 +299,7 @@ class MDP:
 		total_loads = list()
 		flows = list()
 		rewards = list()
+		accumulated_reward = list()
 		total_reward = 0
 
 		current_state = initial_state
@@ -316,6 +317,7 @@ class MDP:
 			flows.append(self.grid.compute_flow(load))
 			rewards.append(reward)
 			total_reward += reward
+			accumulated_reward.append(total_reward)
 
 			next_state = self.get_next_state(current_state, action, timestep)
 			next_price = self.get_next_price(current_price, timestep)
@@ -328,7 +330,7 @@ class MDP:
 				"total_loads": total_loads,
 				"flows": flows,
 				"rewards": rewards,
-				"total_reward": total_reward}
+				"accumulated_reward": accumulated_reward}
 
 	def get_next_state(self, state, action, timestep):
 		return choose(self.future_states_probabilities(from_state=state, action=action))
