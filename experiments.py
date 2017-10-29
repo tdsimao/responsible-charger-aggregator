@@ -1,10 +1,10 @@
-from mdp import MDP
+from mdp import MDP, UncoordinatedMDP
 from Fleet import Fleet
 from EV import EV
 from grid import Grid
 import numpy as np
 import pandas as pd
-
+import matplotlib.pyplot as plt
 
 def init_ev_fleet(num_charge_timesteps, grid_pos_list, deadline):
     return initialize_identical_ev_fleet(init_batt_level=0,
@@ -47,6 +47,10 @@ def deterministic_prices(timestep):
     return [float('inf')]
 
 
+def price_transition_uniform(from_price, to_price, timestep=0, get_price_func=get_prices):
+    return 1./len(get_price_func(timestep + 1))
+
+
 def price_transition_probability_func(p):
     """
     create a new function that return a price transition function
@@ -56,7 +60,7 @@ def price_transition_probability_func(p):
     this function ignores the history of the prices
     """
 
-    def price_transition_probability(from_price, to_price, timestep=0):
+    def price_transition_probability(from_price, to_price, timestep=0, get_price_func=None):
         if len(get_prices(timestep + 1)) == 1:
             return 1
         if to_price == LOW_PRICE:
@@ -75,7 +79,7 @@ def history_dependent_price_transition_probability_func(p):
     and 1 - p of going to the higher price
     """
 
-    def price_transition_probability(from_price, to_price, timestep=0):
+    def price_transition_probability(from_price, to_price, timestep=0, get_price_func=None):
         if len(get_prices(timestep + 1)) == 1:
             return 1
         if from_price == FIRST_PRICE:
@@ -97,8 +101,8 @@ def show_prices(get_prices_func, price_transition_func, horizon, output_file):
     for i in range(horizon - 1):
         prices = get_prices_func(i)
         for p in prices:
-            for fut_price in get_prices(i + 1):
-                prob = price_transition_func(p, fut_price, i)
+            for fut_price in get_prices_func(i + 1):
+                prob = price_transition_func(p, fut_price, i, get_prices_func)
                 if prob > 0:
                     print("{:5} | {:5} | {:5} | {:5}".format(i, p, fut_price, prob))
                     s += "\"{}.{}\" -> \"{}.{}\" [label = \"{}\", weight = \"{}\"];\n".format(i, p, i + 1, fut_price,
@@ -242,43 +246,56 @@ def experiment2_plot_processing_time(data_file, output_file):
 # Experimet 3
 #
 
-def run_experiment3(grid, horizon, num_vehicles, output_file):
-    # increasing number of vehicles
-    print("Number of nodes in the grid: {}".format(grid.n_nodes))
-    ev_s0 = {}
-    profit_increase_rate = {1: 1}
-    processing_time = {}
-    average_reward = {}
-    error_reward = {}
+
+def run_experiment3(grid, horizon, num_vehicles):
+    # solve mdp and run a simulation
+    # returns profile of the simulation
 
     pos_vehicles = [i % (grid.n_nodes - 1) + 1 for i in range(num_vehicles)]
     fleet = init_ev_fleet(4, pos_vehicles, horizon)
-    mdp = MDP(fleet, grid, horizon, get_prices_func=get_prices)
+
+    mdp = MDP(fleet, grid, horizon, get_prices_func=deterministic_prices)
+    profile_mdp_simulation(mdp, "out/experiment3_coordinated.csv")
+
+    mdp = UncoordinatedMDP(fleet, grid, horizon, get_prices_func=deterministic_prices)
+    profile_mdp_simulation(mdp, "out/experiment3_uncoordinated.csv")
+
+
+
+def profile_mdp_simulation(mdp, output_file):
     policy, _ = mdp.value_iteration()
     results = mdp.run_simulation(initial_state=0, policy=policy)
 
     parsed_results = {k : results[k] for k in ["total_loads", "rewards", "accumulated_reward"]}
     for node in grid.nodes:
-        parsed_results["load_node_{}".format(node)] = [results["loads"][i][node] for i in range(horizon)]
+        parsed_results["load_node_{}".format(node)] = [results["loads"][i][node] for i in range(mdp.horizon)]
     for n1, n2 in grid.lines:
-        parsed_results["flow_line_{}_{}".format(n1, n2)] = [abs(results["flows"][i][n1, n2]) for i in range(horizon)]
+        flows = [abs(results["flows"][i][n1, n2]) for i in range(mdp.horizon)]
+        parsed_results["flow_line_{}_{}".format(n1, n2)] = flows
 
     data_frame = pd.DataFrame.from_dict(parsed_results)
     data_frame.to_csv(output_file)
 
 
-def experiment3_plot(data_file, output_file):
-    data_frame = pd.DataFrame.from_csv(data_file)
-    # data_frame = data_frame[["Expected value", "Average reward", 'Profit increase rate']]
+def experiment3_plot_flows(key_to_file, grid, output_file):
+    fig, axes = plt.subplots(nrows=len(grid.lines), ncols=1)
 
-    ax = data_frame.plot()
+    for i, (n1, n2) in enumerate(grid.lines):
+        flow_column = "flow_line_{}_{}".format(n1, n2)
 
-    # ax.set_xlabel('Number of vehicles connected to the grid')
-    # ax.set_ylabel('Expected value initial state')
-    # ax.right_ax.set_ylabel('Profit increase rate')
+        data = {}
+        for model, file in key_to_file.items():
+            df = pd.DataFrame.from_csv(file)
+            data[model] = df[[flow_column]].T.iloc[0]
+        new_df = pd.DataFrame.from_dict(data)
+        new_df.plot.bar(ax=axes[i], legend=True)
 
-    ax.get_legend().set_bbox_to_anchor((0.5, .8))
-    fig = ax.get_figure()
+        axes[i].set_title(flow_column.replace("_",  " ").capitalize())
+        axes[i].set_ylabel('Load')
+
+    axes[i].set_xlabel('Time step')
+
+    fig = axes[0].get_figure()
     fig.tight_layout()
     fig.savefig(output_file)
 
@@ -328,12 +345,14 @@ if __name__ == "__main__":
         print("Experiment 3")
         grid = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
                                      line_bound=200 * args.vehicles_per_line_capacity)
-        run_experiment3(grid=grid, horizon=args.horizon, num_vehicles=2, output_file="out/experiment3.csv")
+        run_experiment3(grid=grid, horizon=args.horizon, num_vehicles=4)
 
     if 3 in args.plots:
-        experiment3_plot(data_file="out/experiment3.csv", output_file='out/experiment3.pdf')
-
-
+        grid = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
+                                     line_bound=200 * args.vehicles_per_line_capacity)
+        key_to_file = {"Coordinated fleet": "out/experiment3_coordinated.csv",
+                       "Uncoordinated fleet": "out/experiment3_uncoordinated.csv"}
+        experiment3_plot_flows(key_to_file=key_to_file, grid=grid, output_file='out/experiment3.pdf')
 
     if args.render_prices:
         print("Printing prices")
@@ -343,5 +362,5 @@ if __name__ == "__main__":
         show_prices(get_prices, history_dependent_price_transition_probability_func(.6), args.horizon,
                     "out/history_dependent_price_transition_probability_func.dot")
         print()
-        show_prices(deterministic_prices, history_dependent_price_transition_probability_func(.6), args.horizon,
+        show_prices(deterministic_prices, price_transition_uniform, args.horizon,
                     "out/prices_deterministic.dot")

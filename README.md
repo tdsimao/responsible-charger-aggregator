@@ -33,6 +33,16 @@ To run and plot the results of this experiment use the following command:
 **Results:**
 - [Incresing number of vehicles](out/experiment2.pdf) [Processing time](out/experiment2processing_time.pdf)
 
+### Experiment 2
+Given a grid and a fleet, solve the problem with coordinated and uncoordinated approaches. Uses a [deterministic price](out/prices_deterministic.dot.pdf) to simplify the simulations.
+
+To run and plot the results of this experiment use the following command: 
+`python3 experiments.py --experiments 3 plots 3`
+
+
+**Results:**
+- [Flow of each line](out/experiment3.pdf)
+
 ### Prices
 To show `python3 experiments.py --render_prices`
 
