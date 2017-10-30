@@ -19,9 +19,15 @@ Increase the probability of having low prices
 To run and plot the results of this experiment use the following command: 
 `python3 experiments.py --experiments 1 --plots 1`
 
+
+- [Grid](grids/grid_1.dot.pdf)
+- [Fleet 1](grids/grid_experiment1_fleet1.dot.pdf)
+- [Fleet 2](grids/grid_experiment1_fleet2.dot.pdf)
+
+
 **Results:**
-- [Vehicles well distributed](out/experiment1_fleet1.pdf)
-- [Vehicles in single node](out/experiment1_fleet2.pdf)
+- [Vehicles well distributed (fleet 1)](out/experiment1_fleet1.pdf)
+- [Vehicles in single node (fleet 2)](out/experiment1_fleet2.pdf)
 
 ### Experiment 2
 Increase the number of vehicles in a given grid
@@ -33,8 +39,8 @@ To run and plot the results of this experiment use the following command:
 **Results:**
 - [Incresing number of vehicles](out/experiment2.pdf) [Processing time](out/experiment2processing_time.pdf)
 
-### Experiment 2
-Given a grid and a fleet, solve the problem with coordinated and uncoordinated approaches. Uses a [deterministic price](out/prices_deterministic.dot.pdf) to simplify the simulations.
+### Experiment 3
+Given a [grid and a fleet](grids/grid_experiment3_fleet.dot.pdf), solve the problem with coordinated and uncoordinated approaches. Uses a [deterministic price](out/prices_deterministic.dot.pdf) to simplify the simulations.
 
 To run and plot the results of this experiment use the following command: 
 `python3 experiments.py --experiments 3 plots 3`

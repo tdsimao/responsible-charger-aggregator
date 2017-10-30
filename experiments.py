@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+
 def init_ev_fleet(num_charge_timesteps, grid_pos_list, deadline):
     return initialize_identical_ev_fleet(init_batt_level=0,
                                          batt_max=num_charge_timesteps,
@@ -51,9 +52,9 @@ def price_transition_uniform(from_price, to_price, timestep=0, get_price_func=ge
     return 1./len(get_price_func(timestep + 1))
 
 
-def price_transition_probability_func(p):
+def get_history_independent_price_transition_func(p):
     """
-    create a new function that return a price transition function
+    create a new function that returns a price transition function
     if there is two future prices there is a probability p of going to the lower price
     and 1 - p of going to the higher price\
 
@@ -72,7 +73,7 @@ def price_transition_probability_func(p):
     return price_transition_probability
 
 
-def history_dependent_price_transition_probability_func(p):
+def get_history_dependent_price_transition_func(p):
     """
     create a new function that return a price transition function
     if there is two future prices there is a probability p of going to the lower price
@@ -117,13 +118,12 @@ def show_prices(get_prices_func, price_transition_func, horizon, output_file):
 #
 
 
-def run_experiment1(fleet, horizon, output_file):
-    grid_file = 'grids/grid_1.txt'
-    results_time_independent = exp_increasing_low_price_prob(fleet, grid_file, horizon,
-                                                             price_transition=price_transition_probability_func)
+def run_experiment1(fleet, grid, horizon, output_file):
+    results_time_independent = experiment_low_price_prob(fleet, grid, horizon,
+                                                         price_transition=get_history_independent_price_transition_func)
 
-    results_time_dependent = exp_increasing_low_price_prob(fleet, grid_file, horizon,
-                                                           price_transition=history_dependent_price_transition_probability_func)
+    results_time_dependent = experiment_low_price_prob(fleet, grid, horizon,
+                                                       price_transition=get_history_dependent_price_transition_func)
 
     data_frame = pd.DataFrame.from_dict(
         {"History independent": results_time_independent,
@@ -131,10 +131,9 @@ def run_experiment1(fleet, horizon, output_file):
     data_frame.to_csv(output_file)
 
 
-def exp_increasing_low_price_prob(fleet, grid, horizon, price_transition):
+def experiment_low_price_prob(fleet, grid, horizon, price_transition, step_size=0.01):
     restults = {}
-    STEP_SIZE = 0.01
-    for p in np.arange(0.0, 1 + STEP_SIZE, STEP_SIZE):
+    for p in np.arange(0.0, 1 + step_size, step_size):
         mdp = MDP(fleet, grid, horizon,
                   get_prices_func=get_prices,
                   price_transition_func=price_transition(p))
@@ -213,7 +212,6 @@ def experiment2_plot_expected_value(data_file, output_file):
     data_frame = pd.DataFrame.from_csv(data_file)
     data_frame = data_frame[["Expected value", "Average reward", 'Profit increase rate']]
 
-
     ax = data_frame.plot(secondary_y=['Profit increase rate'],
                          title="Diminishing profits for adding new vehicles")
 
@@ -243,16 +241,13 @@ def experiment2_plot_processing_time(data_file, output_file):
     print("plot saved at: " + output_file)
 
 #
-# Experimet 3
+# Experiment 3
 #
 
 
-def run_experiment3(grid, horizon, num_vehicles):
+def run_experiment3(grid, fleet, horizon):
     # solve mdp and run a simulation
     # returns profile of the simulation
-
-    pos_vehicles = [i % (grid.n_nodes - 1) + 1 for i in range(num_vehicles)]
-    fleet = init_ev_fleet(4, pos_vehicles, horizon)
 
     mdp = MDP(fleet, grid, horizon, get_prices_func=deterministic_prices)
     profile_mdp_simulation(mdp, "out/experiment3_coordinated.csv")
@@ -261,15 +256,14 @@ def run_experiment3(grid, horizon, num_vehicles):
     profile_mdp_simulation(mdp, "out/experiment3_uncoordinated.csv")
 
 
-
 def profile_mdp_simulation(mdp, output_file):
     policy, _ = mdp.value_iteration()
     results = mdp.run_simulation(initial_state=0, policy=policy)
 
-    parsed_results = {k : results[k] for k in ["total_loads", "rewards", "accumulated_reward"]}
-    for node in grid.nodes:
+    parsed_results = {k: results[k] for k in ["total_loads", "rewards", "accumulated_reward"]}
+    for node in mdp.grid.nodes:
         parsed_results["load_node_{}".format(node)] = [results["loads"][i][node] for i in range(mdp.horizon)]
-    for n1, n2 in grid.lines:
+    for n1, n2 in mdp.grid.lines:
         flows = [abs(results["flows"][i][n1, n2]) for i in range(mdp.horizon)]
         parsed_results["flow_line_{}_{}".format(n1, n2)] = flows
 
@@ -293,7 +287,7 @@ def experiment3_plot_flows(key_to_file, grid, output_file):
         axes[i].set_title(flow_column.replace("_",  " ").capitalize())
         axes[i].set_ylabel('Load')
 
-    axes[i].set_xlabel('Time step')
+    axes[len(grid.lines)-1].set_xlabel('Time step')
 
     fig = axes[0].get_figure()
     fig.tight_layout()
@@ -321,10 +315,16 @@ if __name__ == "__main__":
 
     if 1 in args.experiments:
         print("Experiment 1")
-        run_experiment1(fleet=init_ev_fleet(5, [1, 2], args.horizon), horizon=args.horizon,
+        grid1 = Grid.load_grid_from_file("grids/grid_1.txt")
+        fleet1 = init_ev_fleet(5, [1, 2], args.horizon)
+        run_experiment1(fleet=fleet1, grid=grid1, horizon=args.horizon,
                         output_file="out/experiment1_fleet1.csv")
-        run_experiment1(fleet=init_ev_fleet(5, [1, 1], args.horizon), horizon=args.horizon,
+        grid1.save_to_dot_file_with_fleet(fleet1, "grids/grid_experiment1_fleet1.dot")
+
+        fleet2 = init_ev_fleet(5, [1, 1], args.horizon)
+        run_experiment1(fleet=fleet2, grid=grid1, horizon=args.horizon,
                         output_file="out/experiment1_fleet2.csv")
+        grid1.save_to_dot_file_with_fleet(fleet2, "grids/grid_experiment1_fleet2.dot")
 
     if 1 in args.plots:
         plot_experiment1(data_file="out/experiment1_fleet1.csv", output_file='out/experiment1_fleet1.pdf')
@@ -332,9 +332,9 @@ if __name__ == "__main__":
 
     if 2 in args.experiments:
         print("Experiment 2")
-        grid = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
-                                     line_bound=200 * args.vehicles_per_line_capacity)
-        run_experiment2(grid, horizon=args.horizon, output_file='out/experiment2.csv')
+        grid1 = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
+                                      line_bound=200 * args.vehicles_per_line_capacity)
+        run_experiment2(grid1, horizon=args.horizon, output_file='out/experiment2.csv')
 
     if 2 in args.plots:
         experiment2_plot_expected_value(data_file="out/experiment2.csv", output_file='out/experiment2.pdf')
@@ -343,23 +343,27 @@ if __name__ == "__main__":
 
     if 3 in args.experiments:
         print("Experiment 3")
-        grid = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
-                                     line_bound=200 * args.vehicles_per_line_capacity)
-        run_experiment3(grid=grid, horizon=args.horizon, num_vehicles=4)
+        grid3 = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
+                                      line_bound=200 * args.vehicles_per_line_capacity)
+        vehicles_positions = [i % (grid3.n_nodes - 1) + 1 for i in range(4)]
+        fleet3 = init_ev_fleet(4, vehicles_positions, args.horizon)
+
+        run_experiment3(grid=grid3, fleet=fleet3, horizon=args.horizon)
+        grid3.save_to_dot_file_with_fleet(fleet3, "grids/grid_experiment3_fleet.dot")
 
     if 3 in args.plots:
-        grid = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
-                                     line_bound=200 * args.vehicles_per_line_capacity)
-        key_to_file = {"Coordinated fleet": "out/experiment3_coordinated.csv",
-                       "Uncoordinated fleet": "out/experiment3_uncoordinated.csv"}
-        experiment3_plot_flows(key_to_file=key_to_file, grid=grid, output_file='out/experiment3.pdf')
+        grid1 = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
+                                      line_bound=200 * args.vehicles_per_line_capacity)
+        model_to_file = {"Coordinated fleet": "out/experiment3_coordinated.csv",
+                         "Uncoordinated fleet": "out/experiment3_uncoordinated.csv"}
+        experiment3_plot_flows(key_to_file=model_to_file, grid=grid1, output_file='out/experiment3.pdf')
 
     if args.render_prices:
         print("Printing prices")
-        show_prices(get_prices, price_transition_probability_func(.6), args.horizon,
+        show_prices(get_prices, get_history_independent_price_transition_func(.6), args.horizon,
                     "out/price_transition_probability_func.dot")
         print()
-        show_prices(get_prices, history_dependent_price_transition_probability_func(.6), args.horizon,
+        show_prices(get_prices, get_history_dependent_price_transition_func(.6), args.horizon,
                     "out/history_dependent_price_transition_probability_func.dot")
         print()
         show_prices(deterministic_prices, price_transition_uniform, args.horizon,
