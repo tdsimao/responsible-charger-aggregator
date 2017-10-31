@@ -260,7 +260,7 @@ def profile_mdp_simulation(mdp, output_file):
     policy, _ = mdp.value_iteration()
     results = mdp.run_simulation(initial_state=0, policy=policy)
 
-    parsed_results = {k: results[k] for k in ["total_loads", "rewards", "accumulated_reward"]}
+    parsed_results = {k: results[k] for k in ["total_loads", "rewards", "accumulated_reward", "prices"]}
     for node in mdp.grid.nodes:
         parsed_results["load_node_{}".format(node)] = [results["loads"][i][node] for i in range(mdp.horizon)]
     for n1, n2 in mdp.grid.lines:
@@ -272,9 +272,16 @@ def profile_mdp_simulation(mdp, output_file):
 
 
 def experiment3_plot_flows(key_to_file, grid, output_file):
-    fig, axes = plt.subplots(nrows=len(grid.lines), ncols=1)
+    fig, axes = plt.subplots(nrows=len(grid.lines)+1, ncols=1, sharex=True)
 
-    for i, (n1, n2) in enumerate(grid.lines):
+    # TODO: plot the prices used in axes[0]
+
+    axes[0].set_ylabel('Energy price ($ MW/h)')
+    prices_df = pd.DataFrame.from_csv(next(iter(key_to_file.values())))["prices"]
+    prices_df.plot(ax=axes[0])
+    axes[0].set_title('Energy prices')
+
+    for i, (n1, n2) in enumerate(grid.lines, start=1):
         flow_column = "flow_line_{}_{}".format(n1, n2)
 
         data = {}
@@ -285,9 +292,11 @@ def experiment3_plot_flows(key_to_file, grid, output_file):
         new_df.plot.bar(ax=axes[i], legend=True)
 
         axes[i].set_title(flow_column.replace("_",  " ").capitalize())
-        axes[i].set_ylabel('Load')
+        axes[i].set_ylabel('Power flow')
 
-    axes[len(grid.lines)-1].set_xlabel('Time step')
+        axes[i].axhline(y=grid.line_bounds[n1, n2], c="blue", linewidth=0.75, linestyle='--', label="Line bound")
+        axes[i].legend()
+    axes[-1].set_xlabel('Time step')
 
     fig = axes[0].get_figure()
     fig.tight_layout()
@@ -309,8 +318,8 @@ if __name__ == "__main__":
                         help='render price transition')
     parser.add_argument('--horizon', type=int, default=12,
                         help='horizon for the test')
-    parser.add_argument('--vehicles_per_line_capacity', type=int, default=2,
-                        help='number of vehicles that each line support')
+    parser.add_argument('--line_capacity', type=int, default=420,
+                        help='power capacity of each line')
     args = parser.parse_args()
 
     if 1 in args.experiments:
@@ -333,7 +342,7 @@ if __name__ == "__main__":
     if 2 in args.experiments:
         print("Experiment 2")
         grid1 = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
-                                      line_bound=200 * args.vehicles_per_line_capacity)
+                                      line_bound=args.line_capacity)
         run_experiment2(grid1, horizon=args.horizon, output_file='out/experiment2.csv')
 
     if 2 in args.plots:
@@ -343,20 +352,20 @@ if __name__ == "__main__":
 
     if 3 in args.experiments:
         print("Experiment 3")
-        grid3 = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
-                                      line_bound=200 * args.vehicles_per_line_capacity)
-        vehicles_positions = [i % (grid3.n_nodes - 1) + 1 for i in range(4)]
+        grid3 = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=1,
+                                      line_bound=args.line_capacity)
+        vehicles_positions = [i % (grid3.n_nodes - 1) + 1 for i in range(2)]
         fleet3 = init_ev_fleet(4, vehicles_positions, args.horizon)
 
         run_experiment3(grid=grid3, fleet=fleet3, horizon=args.horizon)
         grid3.save_to_dot_file_with_fleet(fleet3, "grids/grid_experiment3_fleet.dot")
 
     if 3 in args.plots:
-        grid1 = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
-                                      line_bound=200 * args.vehicles_per_line_capacity)
+        grid3 = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=1,
+                                      line_bound=args.line_capacity)
         model_to_file = {"Coordinated fleet": "out/experiment3_coordinated.csv",
                          "Uncoordinated fleet": "out/experiment3_uncoordinated.csv"}
-        experiment3_plot_flows(key_to_file=model_to_file, grid=grid1, output_file='out/experiment3.pdf')
+        experiment3_plot_flows(key_to_file=model_to_file, grid=grid3, output_file='out/experiment3.pdf')
 
     if args.render_prices:
         print("Printing prices")

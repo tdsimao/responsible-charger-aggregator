@@ -300,6 +300,7 @@ class MDP:
 		flows = list()
 		rewards = list()
 		accumulated_reward = list()
+		prices = list()
 		total_reward = 0
 
 		current_state = initial_state
@@ -318,6 +319,7 @@ class MDP:
 			rewards.append(reward)
 			total_reward += reward
 			accumulated_reward.append(total_reward)
+			prices.append(current_price)
 
 			next_state = self.get_next_state(current_state, action, timestep)
 			next_price = self.get_next_price(current_price, timestep)
@@ -330,7 +332,8 @@ class MDP:
 				"total_loads": total_loads,
 				"flows": flows,
 				"rewards": rewards,
-				"accumulated_reward": accumulated_reward}
+				"accumulated_reward": accumulated_reward,
+				"prices": prices}
 
 	def get_next_state(self, state, action, timestep):
 		return choose(self.future_states_probabilities(from_state=state, action=action))

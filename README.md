@@ -33,7 +33,7 @@ To run and plot the results of this experiment use the following command:
 Increase the number of vehicles in a given grid
 
 To run and plot the results of this experiment use the following command: 
-`python3 experiments.py --experiments 2 --horizon 8 --vehicles_per_line_capacity 1`
+`python3 experiments.py --experiments 2 --horizon 8 --line_capacity 210`
 
 
 **Results:**
@@ -43,7 +43,7 @@ To run and plot the results of this experiment use the following command:
 Given a [grid and a fleet](grids/grid_experiment3_fleet.dot.pdf), solve the problem with coordinated and uncoordinated approaches. Uses a [deterministic price](out/prices_deterministic.dot.pdf) to simplify the simulations.
 
 To run and plot the results of this experiment use the following command: 
-`python3 experiments.py --experiments 3 plots 3`
+`python3 experiments.py --experiments 3 --plots 3 --horizon 12 --line_capacity 210`
 
 
 **Results:**
