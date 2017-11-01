@@ -35,6 +35,13 @@ Uses [History independent price](out/price_transition_probability_func.dot.pdf) 
 To run and plot the results of this experiment use the following command: 
 `python3 experiments.py --experiments 2 --horizon 8 --line_capacity 210`
 
+Grids used:
+- [1 vehicle](grids/grid_experiment2_fleet1.dot.pdf)
+- [2 vehicles](grids/grid_experiment2_fleet2.dot.pdf)
+- [3 vehicles](grids/grid_experiment2_fleet3.dot.pdf)
+- [4 vehicles](grids/grid_experiment2_fleet4.dot.pdf)
+- [5 vehicles](grids/grid_experiment2_fleet5.dot.pdf)
+- [6 vehicles](grids/grid_experiment2_fleet6.dot.pdf)
 
 **Results:**
 - [Incresing number of vehicles](out/experiment2.pdf) [Processing time](out/experiment2processing_time.pdf)
