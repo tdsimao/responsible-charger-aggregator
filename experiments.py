@@ -5,6 +5,7 @@ from grid import Grid
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import time
 
 
 def init_ev_fleet(num_charge_timesteps, grid_pos_list, deadline):
@@ -173,23 +174,31 @@ TREE_HIGH = 2
 TREE_BRANCHING_FACTOR = 2
 
 
-def run_experiment2(grid, horizon, output_file):
+def run_experiment2(line_bound, horizon, output_file):
     # increasing number of vehicles
-    print("Number of nodes in the grid: {}".format(grid.n_nodes))
     ev_s0 = {}
     profit_increase_rate = {1: 1}
+    pre_processing_time = {}
     processing_time = {}
     average_reward = {}
     error_reward = {}
 
+    initial_time = time.time()
+    grid = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
+                                  line_bound=line_bound)
+    grid_initialization_time = time.time() - initial_time
+
     for num_vehicles in range(1, MAX_NUMBER_OF_CARS + 1):
         pos_vehicles = [i % (grid.n_nodes - 1) + 1 for i in range(num_vehicles)]
         fleet = init_ev_fleet(4, pos_vehicles, horizon)
+        grid.save_to_dot_file_with_fleet(fleet, "grids/grid_experiment2_fleet{}.dot".format(num_vehicles))
+
         mdp = MDP(fleet, grid, horizon, get_prices_func=get_prices)
         results = mdp.solve_get_stats()
 
         print(num_vehicles, results)
 
+        pre_processing_time[num_vehicles] = results["Feasible actions computational time"] + grid_initialization_time
         processing_time[num_vehicles] = results["Optimization time"]
         ev_s0[num_vehicles] = results["Expected value initial state"]
         average_reward[num_vehicles] = results["average_reward"]
@@ -200,9 +209,10 @@ def run_experiment2(grid, horizon, output_file):
         data_frame = pd.DataFrame.from_dict(
             {"Expected value": ev_s0,
              "Profit increase rate": profit_increase_rate,
-             "Optimization time": processing_time,
+             "Optimization": processing_time,
              "Average reward": average_reward,
              "error_reward": error_reward,
+             "Preprocessing": pre_processing_time
              }
         )
         data_frame.to_csv(output_file)
@@ -210,7 +220,7 @@ def run_experiment2(grid, horizon, output_file):
 
 def experiment2_plot_expected_value(data_file, output_file):
     data_frame = pd.DataFrame.from_csv(data_file)
-    data_frame = data_frame[["Expected value", "Average reward", 'Profit increase rate']]
+    data_frame = data_frame[["Expected value", "Profit increase rate"]]
 
     ax = data_frame.plot(secondary_y=['Profit increase rate'],
                          title="Diminishing profits for adding new vehicles")
@@ -228,11 +238,11 @@ def experiment2_plot_expected_value(data_file, output_file):
 
 
 def experiment2_plot_processing_time(data_file, output_file):
-    data_frame = pd.DataFrame.from_csv(data_file)[["Optimization time"]]
+    data_frame = pd.DataFrame.from_csv(data_file)[["Optimization", "Preprocessing"]]
     ax = data_frame.plot(logy=True)
 
     ax.set_xlabel('Number of vehicles connected to the grid')
-    ax.set_ylabel('Processing time')
+    ax.set_ylabel('Time (s)')
 
     fig = ax.get_figure()
     fig.tight_layout()
@@ -273,8 +283,6 @@ def profile_mdp_simulation(mdp, output_file):
 
 def experiment3_plot_flows(key_to_file, grid, output_file):
     fig, axes = plt.subplots(nrows=len(grid.lines)+1, ncols=1, sharex=True)
-
-    # TODO: plot the prices used in axes[0]
 
     axes[0].set_ylabel('Energy price ($ MW/h)')
     prices_df = pd.DataFrame.from_csv(next(iter(key_to_file.values())))["prices"]
@@ -341,9 +349,8 @@ if __name__ == "__main__":
 
     if 2 in args.experiments:
         print("Experiment 2")
-        grid1 = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
-                                      line_bound=args.line_capacity)
-        run_experiment2(grid1, horizon=args.horizon, output_file='out/experiment2.csv')
+
+        run_experiment2(line_bound=args.line_capacity, horizon=args.horizon, output_file='out/experiment2.csv')
 
     if 2 in args.plots:
         experiment2_plot_expected_value(data_file="out/experiment2.csv", output_file='out/experiment2.pdf')

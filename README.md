@@ -30,8 +30,8 @@ To run and plot the results of this experiment use the following command:
 - [Vehicles in single node (fleet 2)](out/experiment1_fleet2.pdf)
 
 ### Experiment 2
-Increase the number of vehicles in a given grid
-
+Increase the number of vehicles in a given grid.
+Uses [History independent price](out/price_transition_probability_func.dot.pdf) between times steps zero and seven with p = 0.5.
 To run and plot the results of this experiment use the following command: 
 `python3 experiments.py --experiments 2 --horizon 8 --line_capacity 210`
 

@@ -279,7 +279,7 @@ class MDP:
 				"# Feasible actions": len(self.grid_feasible_actions()),
 				"# States": len(self.get_states()),
 				"Optimization time": optimization_time,
-				"Time to compute feasible actions": grid_feasible_actions_time,
+				"Feasible actions computational time": grid_feasible_actions_time,
 				"Expected value initial state": expected_value[0][0],
 				"average_reward" : simulation_results["average_reward"],
 				"error" : simulation_results["error"],
