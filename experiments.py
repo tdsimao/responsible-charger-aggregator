@@ -127,26 +127,39 @@ def run_experiment1(fleet, grid, horizon, output_file):
                                                        price_transition=get_history_dependent_price_transition_func)
 
     data_frame = pd.DataFrame.from_dict(
-        {"History independent": results_time_independent,
-         "History dependent": results_time_dependent})
+        {"History independent": results_time_independent[0],
+         "History dependent": results_time_dependent[0],
+         "History independent (simulation)": results_time_independent[1],
+         "History dependent (simulation)": results_time_dependent[1]
+        }
+    )
     data_frame.to_csv(output_file)
 
 
 def experiment_low_price_prob(fleet, grid, horizon, price_transition, step_size=0.01):
-    restults = {}
+    results = {}
+    simulation_results = {}
     for p in np.arange(0.0, 1 + step_size, step_size):
         mdp = MDP(fleet, grid, horizon,
                   get_prices_func=get_prices,
                   price_transition_func=price_transition(p))
         policy, expected_val = mdp.value_iteration()
-        restults[p] = expected_val[0][0]
-    return restults
+        results[p] = expected_val[0][0]
+
+        mdp = MDP(fleet, grid, horizon,
+                  get_prices_func=get_prices,
+                  price_transition_func=get_history_dependent_price_transition_func(p))
+        new_results = mdp.run_simulations(policy=policy, initial_state=0, repetitions=5000)
+        simulation_results[p] = new_results["average_reward"]
+
+    return results, simulation_results
 
 
 def plot_experiment1(data_file, output_file):
     data_frame = pd.DataFrame.from_csv(data_file)
 
-    ax = data_frame.plot(title="Expected value according to probability of low energy prices")
+    ax = data_frame.plot(title="Expected value vs simulation results for different price models",
+                         style=['C0-', 'C0--', 'C1-', 'C1--'])
 
     fig = ax.get_figure()
     ax.spines["top"].set_visible(False)
@@ -184,8 +197,7 @@ def run_experiment2(line_bound, horizon, output_file):
     error_reward = {}
 
     initial_time = time.time()
-    grid = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR,
-                                  line_bound=line_bound)
+    grid = Grid.create_tree_grid(high=TREE_HIGH, branch_factor=TREE_BRANCHING_FACTOR, line_bound=line_bound)
     grid_initialization_time = time.time() - initial_time
 
     for num_vehicles in range(1, MAX_NUMBER_OF_CARS + 1):
@@ -193,7 +205,7 @@ def run_experiment2(line_bound, horizon, output_file):
         fleet = init_ev_fleet(4, pos_vehicles, horizon)
         grid.save_to_dot_file_with_fleet(fleet, "grids/grid_experiment2_fleet{}.dot".format(num_vehicles))
 
-        mdp = MDP(fleet, grid, horizon, get_prices_func=get_prices)
+        mdp = MDP(fleet, grid, horizon, get_prices_func=deterministic_prices)
         results = mdp.solve_get_stats()
 
         print(num_vehicles, results)
@@ -209,10 +221,10 @@ def run_experiment2(line_bound, horizon, output_file):
         data_frame = pd.DataFrame.from_dict(
             {"Expected value": ev_s0,
              "Profit increase rate": profit_increase_rate,
-             "Optimization": processing_time,
+             "Processing time": processing_time,
              "Average reward": average_reward,
              "error_reward": error_reward,
-             "Preprocessing": pre_processing_time
+             "Preprocessing time": pre_processing_time
              }
         )
         data_frame.to_csv(output_file)
@@ -238,7 +250,7 @@ def experiment2_plot_expected_value(data_file, output_file):
 
 
 def experiment2_plot_processing_time(data_file, output_file):
-    data_frame = pd.DataFrame.from_csv(data_file)[["Optimization", "Preprocessing"]]
+    data_frame = pd.DataFrame.from_csv(data_file)[["Processing time", "Preprocessing time"]]
     ax = data_frame.plot(logy=True)
 
     ax.set_xlabel('Number of vehicles connected to the grid')
@@ -333,12 +345,12 @@ if __name__ == "__main__":
     if 1 in args.experiments:
         print("Experiment 1")
         grid1 = Grid.load_grid_from_file("grids/grid_1.txt")
-        fleet1 = init_ev_fleet(5, [1, 2], args.horizon)
+        fleet1 = init_ev_fleet(4, [1, 2], args.horizon)
         run_experiment1(fleet=fleet1, grid=grid1, horizon=args.horizon,
                         output_file="out/experiment1_fleet1.csv")
         grid1.save_to_dot_file_with_fleet(fleet1, "grids/grid_experiment1_fleet1.dot")
 
-        fleet2 = init_ev_fleet(5, [1, 1], args.horizon)
+        fleet2 = init_ev_fleet(4, [1, 1], args.horizon)
         run_experiment1(fleet=fleet2, grid=grid1, horizon=args.horizon,
                         output_file="out/experiment1_fleet2.csv")
         grid1.save_to_dot_file_with_fleet(fleet2, "grids/grid_experiment1_fleet2.dot")
@@ -349,7 +361,6 @@ if __name__ == "__main__":
 
     if 2 in args.experiments:
         print("Experiment 2")
-
         run_experiment2(line_bound=args.line_capacity, horizon=args.horizon, output_file='out/experiment2.csv')
 
     if 2 in args.plots:
