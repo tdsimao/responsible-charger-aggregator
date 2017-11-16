@@ -19,19 +19,42 @@ Increase the probability of having low prices
 To run and plot the results of this experiment use the following command: 
 `python3 experiments.py --experiments 1 --plots 1`
 
+
+- [Grid](grids/grid_1.dot.pdf)
+- [Fleet 1](grids/grid_experiment1_fleet1.dot.pdf)
+- [Fleet 2](grids/grid_experiment1_fleet2.dot.pdf)
+
+
 **Results:**
-- [Vehicles well distributed](out/experiment1_fleet1.pdf)
-- [Vehicles in single node](out/experiment1_fleet2.pdf)
+- [Vehicles well distributed (fleet 1)](out/experiment1_fleet1.pdf)
+- [Vehicles in single node (fleet 2)](out/experiment1_fleet2.pdf)
 
 ### Experiment 2
-Increase the number of vehicles in a given grid
+Increase the number of vehicles in a given grid.
+Uses [History independent price](out/price_transition_probability_func.dot.pdf) between times steps zero and seven with p = 0.5.
+To run and plot the results of this experiment use the following command: 
+`python3 experiments.py --experiments 2 --horizon 8 --line_capacity 210`
+
+Grids used:
+- [1 vehicle](grids/grid_experiment2_fleet1.dot.pdf)
+- [2 vehicles](grids/grid_experiment2_fleet2.dot.pdf)
+- [3 vehicles](grids/grid_experiment2_fleet3.dot.pdf)
+- [4 vehicles](grids/grid_experiment2_fleet4.dot.pdf)
+- [5 vehicles](grids/grid_experiment2_fleet5.dot.pdf)
+- [6 vehicles](grids/grid_experiment2_fleet6.dot.pdf)
+
+**Results:**
+- [Incresing number of vehicles](out/experiment2.pdf) [Processing time](out/experiment2processing_time.pdf)
+
+### Experiment 3
+Given a [grid and a fleet](grids/grid_experiment3_fleet.dot.pdf), solve the problem with coordinated and uncoordinated approaches. Uses a [deterministic price](out/prices_deterministic.dot.pdf) to simplify the simulations.
 
 To run and plot the results of this experiment use the following command: 
-`python3 experiments.py --experiments 2 --horizon 8 --vehicles_per_line_capacity 1`
+`python3 experiments.py --experiments 3 --plots 3 --horizon 12 --line_capacity 210`
 
 
 **Results:**
-- [Incresing number of vehicles](out/experiment2.pdf)
+- [Flow of each line](out/experiment3.pdf)
 
 ### Prices
 To show `python3 experiments.py --render_prices`

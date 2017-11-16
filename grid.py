@@ -1,11 +1,10 @@
 import numpy as np
-from pprint import pprint
-
 
 
 class Grid(object):
     def __init__(self, n_nodes, n_lines, lines, reactances, line_bounds):
         self.n_nodes = n_nodes
+        self.nodes = range(self.n_nodes)
         self.n_lines = n_lines
         self.lines = lines
         self.line_bounds = self._get_line_bounds(line_bounds)
@@ -60,6 +59,32 @@ class Grid(object):
             for i, j in self.lines:
                 f.write("{} {} 0 {} {}\n".format(i, j, self.x[i, j], self.line_bounds[i, j]))
 
+    def save_to_dot_file(self, output_file):
+        s = "graph{\n"
+        for i, j in self.lines:
+            bound = int(self.line_bounds[i, j])
+            reactance = self.x[i, j]
+            s += "\"n{}\" -- \"n{}\" [label = \"{}, {}\"];\n".format(i, j, bound, reactance)
+        s += "}\n"
+        with open(output_file, 'w') as f:
+            f.write(s)
+
+    def save_to_dot_file_with_fleet(self, fleet, output_file):
+        vehicles_per_node = dict()
+        for vehicle in fleet.vehicles:
+            vehicles_per_node[vehicle.grid_position] = vehicles_per_node.get(vehicle.grid_position, 0) + 1
+
+        s = "graph{\n"
+        for i, j in self.lines:
+            bound = int(self.line_bounds[i, j])
+            reactance = self.x[i, j]
+            label_i = "n{}: {}".format(i, vehicles_per_node.get(i, 0))
+            label_j = "n{}: {}".format(j, vehicles_per_node.get(j, 0))
+            s += "\"{}\" -- \"{}\" [label = \"{}, {}\"];\n".format(label_i, label_j, bound, reactance)
+        s += "}\n"
+        with open(output_file, 'w') as f:
+            f.write(s)
+
     @staticmethod
     def create_tree_grid(high, branch_factor, reactance=.1, line_bound=100):
         assert high > 1
@@ -89,14 +114,14 @@ class Grid(object):
         z = self._compute_z()
         s = np.zeros([self.n_nodes, self.n_nodes, self.n_nodes])
         for k in range(self.n_nodes):
-            for l in range(self.n_nodes):
+            for L in range(self.n_nodes):
                 for i in range(self.n_nodes):
-                    if k == 0 and l != 0:
-                        s[k, l, i] = -1 * z[l-1, i-1]
-                    elif k != 0 and l == 0:
-                        s[k, l, i] = z[k-1, i-1]
-                    elif k != 0 and l != 0 and k != l:
-                        s[k, l, i] = z[k-1, i-1] - z[l-1, i-1]
+                    if k == 0 and L != 0:
+                        s[k, L, i] = -1 * z[L-1, i-1]
+                    elif k != 0 and L == 0:
+                        s[k, L, i] = z[k-1, i-1]
+                    elif k != 0 and L != 0 and k != L:
+                        s[k, L, i] = z[k-1, i-1] - z[L-1, i-1]
         return s
 
     def _compute_z(self):
@@ -106,7 +131,7 @@ class Grid(object):
     def _compute_m(self):
         m = np.zeros([self.n_nodes, self.n_nodes])
         for i, j in self.lines:
-            x = self.x[i,j]
+            x = self.x[i, j]
             m[i][j] += 1.0 / x
             m[j][i] += 1.0 / x
             m[i][i] += 1.0 / x
@@ -149,6 +174,7 @@ if __name__ == "__main__":
     running some tests with the example from [Walraven and Morales-España, 2015]
     """
     grid = Grid.load_grid_from_file('grids/grid_1.txt')
+    grid.save_to_dot_file('grids/grid_1.dot')
 
     print(grid.compute_flow([2, 1, -3]))
 
